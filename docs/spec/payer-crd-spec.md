@@ -449,24 +449,24 @@ Use a minimal hand-crafted request body that mirrors the demo scenario fixtures.
 
 Follow this order when implementing Phase 1. Each step has a verifiable outcome before proceeding.
 
-| Step | Task | Verify |
-|------|------|--------|
-| 1 | Create `payer-crd/` directory structure as shown in Section 4 | All directories exist |
-| 2 | Create `composer.json` with PSR-4 autoloading and PHPUnit dev dependency | `composer install` succeeds; `vendor/autoload.php` exists |
-| 3 | Create `.env` and `.env.example` with keys from Section 5.1 | `.env` has `APP_ENV=development` and `PAYER_BASE_URL=http://localhost:8080` |
-| 4 | Verify Apache and PHP-FPM are running and serving `public/index.php` | `curl http://localhost:8080` returns the placeholder HTML |
-| 5 | Implement `src/Http/Request.php` and `src/Http/Response.php` | Classes are autoloaded without error |
-| 6 | Implement the `.htaccess` rewrite rules | `curl http://localhost:8080/cds-services` routes to `index.php` (confirmed via a temporary echo in index.php) |
-| 7 | Create `config/payer-rules.php` with values from Section 12 | File returns the expected array when `require`d |
-| 8 | Create `fixtures/cds-discovery.json` matching the API contract | File is valid JSON; content matches Section 3.3 of the contract |
-| 9 | Implement `src/CdsHooks/DiscoveryController.php` | `curl http://localhost:8080/cds-services` returns the discovery JSON |
-| 10 | Implement the front controller routing in `public/index.php` | GET /cds-services dispatches to the controller; unknown routes return 404 |
-| 11 | Write and run `DiscoveryControllerTest` | PHPUnit tests pass |
-| 12 | Implement `src/Rules/ColonoscopyRuleEngine.php` | Class instantiates and `evaluate()` returns the correct structure |
-| 13 | Write and run `ColonoscopyRuleEngineTest` | PHPUnit tests pass |
-| 14 | Create `fixtures/cards-covered-high-risk.json` and `fixtures/cards-missing-documentation.json` matching the API contract | Files are valid JSON; content matches Sections 6.1 and 6.2 of the contract |
-| 15 | Implement `src/CdsHooks/CardFactory.php` | `buildCardsForOutcome()` returns the correct card array for each outcome |
-| 16 | Implement `src/CdsHooks/CrdServiceController.php` | `POST /cds-services/crd-order-sign` with a hand-crafted JSON body returns CDS Cards |
-| 17 | Write and run `CrdServiceControllerTest` | PHPUnit tests pass |
-| 18 | Run full PHPUnit suite | `./vendor/bin/phpunit` passes all tests |
-| 19 | Perform end-to-end test with the Python EHR | `POST /orders/colonoscopy/crd` from the EHR produces CDS Cards in the browser |
+| Step | Task | Verify | Status |
+|------|------|--------|--------|
+| 1 | Create `payer-crd/` directory structure as shown in Section 4 | All directories exist | Not started |
+| 2 | Create `composer.json` with PSR-4 autoloading and PHPUnit dev dependency | `composer install` succeeds; `vendor/autoload.php` exists | Not started |
+| 3 | Create `.env` and `.env.example` with keys from Section 5.1 | `.env` has `APP_ENV=development` and `PAYER_BASE_URL=http://localhost:8080` | Partial — `.env` exists; `.env.example` not created |
+| 4 | Verify Apache and PHP-FPM are running and serving `public/index.php` | `curl http://localhost:8080` returns the placeholder HTML | Complete |
+| 5 | Implement `src/Http/Request.php` and `src/Http/Response.php` | Classes are autoloaded without error | Not started |
+| 6 | Implement the `.htaccess` rewrite rules | `curl http://localhost:8080/cds-services` routes to `index.php` (confirmed via a temporary echo in index.php) | Not started |
+| 7 | Create `config/payer-rules.php` with values from Section 12 | File returns the expected array when `require`d | Not started |
+| 8 | Create `fixtures/cds-discovery.json` matching the API contract | File is valid JSON; content matches Section 3.3 of the contract | Not started |
+| 9 | Implement `src/CdsHooks/DiscoveryController.php` | `curl http://localhost:8080/cds-services` returns the discovery JSON | Not started |
+| 10 | Implement the front controller routing in `public/index.php` | GET /cds-services dispatches to the controller; unknown routes return 404 | Not started — `public/index.php` is a static HTML placeholder |
+| 11 | Write and run `DiscoveryControllerTest` | PHPUnit tests pass | Not started |
+| 12 | Implement `src/Rules/ColonoscopyRuleEngine.php` | Class instantiates and `evaluate()` returns the correct structure | Not started |
+| 13 | Write and run `ColonoscopyRuleEngineTest` | PHPUnit tests pass | Not started |
+| 14 | Create `fixtures/cards-covered-high-risk.json` and `fixtures/cards-missing-documentation.json` matching the API contract | Files are valid JSON; content matches Sections 6.1 and 6.2 of the contract | Not started |
+| 15 | Implement `src/CdsHooks/CardFactory.php` | `buildCardsForOutcome()` returns the correct card array for each outcome | Not started |
+| 16 | Implement `src/CdsHooks/CrdServiceController.php` | `POST /cds-services/crd-order-sign` with a hand-crafted JSON body returns CDS Cards | Not started |
+| 17 | Write and run `CrdServiceControllerTest` | PHPUnit tests pass | Not started |
+| 18 | Run full PHPUnit suite | `./vendor/bin/phpunit` passes all tests | Not started |
+| 19 | Perform end-to-end test with the Python EHR | `POST /orders/colonoscopy/crd` from the EHR produces CDS Cards in the browser | Not started |

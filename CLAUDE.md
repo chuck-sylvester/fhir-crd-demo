@@ -26,7 +26,7 @@ brew services start httpd    # Homebrew Apache (port 8080)
 
 ```bash
 cd provider-ehr
-source venv/bin/activate     # first time: python -m venv venv && pip install -r requirements.txt
+source .venv/bin/activate     # first time: python -m venv .venv && pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -113,6 +113,36 @@ Each card may include a `links` array with an `absolute` link to a DTR-style doc
 - **Phase 2:** Rule depth — average-risk vs high-risk branches, debug screens, focused unit tests
 - **Phase 3:** Standards alignment — FHIR profile conformance, `order-select`, richer discovery metadata
 - **Phase 4:** Future extensions — SMART on FHIR, HAPI FHIR Server, DTR, PAS, RAG-assisted rule lookup
+
+## Phase 1 Implementation Status
+
+### Provider EHR (Python)
+
+Build sequence steps 1–7 are complete. Steps 8–18 are not started.
+
+**Complete:**
+- Directory structure, `requirements.txt`, `.env` / `.env.example`
+- `config.py` — Pydantic-Settings configuration with module-level `settings` singleton
+- All five FHIR fixture files in `app/fixtures/`
+- `models.py` — CDS Hooks request and response Pydantic models
+- `fhir_factory.py` — fixture loader and CDS Hooks request assembler
+
+**Stub (file exists, implementation empty):**
+- `app/main.py`
+- `app/cds_client.py`
+
+**Not started:**
+- `app/routes/clinician.py`, `app/routes/api.py` (directory exists)
+- `app/templates/base.html`, `patient_chart.html`, `cds_cards.html` (directory exists)
+- `app/static/` (directory exists, no content)
+- `tests/test_fhir_factory.py`, `test_cds_client.py`, `test_routes.py` (no `tests/` directory yet)
+- `Dockerfile`
+
+### Payer CRD (PHP)
+
+Build sequence step 4 verified (Apache/PHP-FPM running and serving `public/index.php`). All implementation steps are not started. `public/index.php` is a static HTML placeholder that must be replaced with the front controller implementation. `.env` exists; all other files and directories remain to be created.
+
+---
 
 ## Reference Specifications
 

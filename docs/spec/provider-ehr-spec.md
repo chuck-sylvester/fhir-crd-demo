@@ -578,23 +578,23 @@ Use FastAPI's `TestClient` with an overridden dependency or a mocked `cds_client
 
 Follow this order when implementing Phase 1. Each step has a verifiable outcome before proceeding.
 
-| Step | Task | Verify |
-|------|------|--------|
-| 1 | Create `provider-ehr/` directory structure as shown in Section 4 | All directories and `__init__.py` files exist |
-| 2 | Populate `requirements.txt` with all dependencies from Section 3 | `pip install -r requirements.txt` succeeds |
-| 3 | Create `.env` and `.env.example` with keys from Section 5.1 | `.env` has `PAYER_CRD_URL=http://localhost:8080` |
-| 4 | Implement `config.py` | `from app.config import settings; settings.payer_crd_url` works in a Python shell |
-| 5 | Create all five fixture JSON files in `app/fixtures/` | Each file is valid JSON; field values match API contract Section 7 |
-| 6 | Implement `models.py` | Pydantic model imports succeed with no errors |
-| 7 | Implement `fhir_factory.py` | `python -c "from app.fhir_factory import build_crd_request; print(build_crd_request())"` prints a model |
-| 8 | Run `test_fhir_factory.py` tests | All tests pass |
-| 9 | Create `base.html` with CDN links for Tailwind and HTMX | HTML is valid; CDN resources load in browser |
-| 10 | Implement `main.py` with template and static mounts | `uvicorn app.main:app --reload --port 8000` starts without error |
-| 11 | Implement `GET /` and `GET /patients/{patient_id}` in `routes/clinician.py` | Browser shows patient chart at `http://localhost:8000/patients/demo-patient-001` |
-| 12 | Create `patient_chart.html` displaying all fixture data | Patient name, condition, order, and prior procedure appear on the page |
-| 13 | Implement `cds_client.py` | Module imports succeed; `_last_request` and `_last_response` are `None` at startup |
-| 14 | Implement `POST /orders/colonoscopy/crd` in `routes/clinician.py` | With the PHP payer running, clicking the button returns cards |
-| 15 | Create `cds_cards.html` partial | Cards render in the page panel with correct indicator colors |
-| 16 | Implement `routes/api.py` debug routes | `GET /debug/last-crd-request` and `GET /debug/last-crd-response` return JSON |
-| 17 | Run full test suite | `python -m pytest` passes |
-| 18 | Run end-to-end manual test | Full browser workflow from patient chart to CDS Cards with real payer |
+| Step | Task | Verify | Status |
+|------|------|--------|--------|
+| 1 | Create `provider-ehr/` directory structure as shown in Section 4 | All directories and `__init__.py` files exist | Complete |
+| 2 | Populate `requirements.txt` with all dependencies from Section 3 | `pip install -r requirements.txt` succeeds | Complete |
+| 3 | Create `.env` and `.env.example` with keys from Section 5.1 | `.env` has `PAYER_CRD_URL=http://localhost:8080` | Complete |
+| 4 | Implement `config.py` | `from app.config import settings; settings.payer_crd_url` works in a Python shell | Complete |
+| 5 | Create all five fixture JSON files in `app/fixtures/` | Each file is valid JSON; field values match API contract Section 7 | Complete |
+| 6 | Implement `models.py` | Pydantic model imports succeed with no errors | Complete |
+| 7 | Implement `fhir_factory.py` | `python -c "from app.fhir_factory import build_crd_request; print(build_crd_request())"` prints a model | Complete |
+| 8 | Run `test_fhir_factory.py` tests | All tests pass | Not started |
+| 9 | Create `base.html` with CDN links for Tailwind and HTMX | HTML is valid; CDN resources load in browser | Not started |
+| 10 | Implement `main.py` with template and static mounts | `uvicorn app.main:app --reload --port 8000` starts without error | Stub |
+| 11 | Implement `GET /` and `GET /patients/{patient_id}` in `routes/clinician.py` | Browser shows patient chart at `http://localhost:8000/patients/demo-patient-001` | Not started |
+| 12 | Create `patient_chart.html` displaying all fixture data | Patient name, condition, order, and prior procedure appear on the page | Not started |
+| 13 | Implement `cds_client.py` | Module imports succeed; `_last_request` and `_last_response` are `None` at startup | Stub |
+| 14 | Implement `POST /orders/colonoscopy/crd` in `routes/clinician.py` | With the PHP payer running, clicking the button returns cards | Not started |
+| 15 | Create `cds_cards.html` partial | Cards render in the page panel with correct indicator colors | Not started |
+| 16 | Implement `routes/api.py` debug routes | `GET /debug/last-crd-request` and `GET /debug/last-crd-response` return JSON | Not started |
+| 17 | Run full test suite | `python -m pytest` passes | Not started |
+| 18 | Run end-to-end manual test | Full browser workflow from patient chart to CDS Cards with real payer | Not started |

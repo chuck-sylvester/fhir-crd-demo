@@ -1,0 +1,17 @@
+{
+  "resourceType": "Coverage",
+  "id": "demo-coverage-001",
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns='http://www.w3.org/1999/xhtml'>Coverage: Demo Payer CRD Inc., status active, beneficiary Patient/demo-patient-001</div>"
+  },
+  "status": "active",
+  "beneficiary": {
+    "reference": "Patient/demo-patient-001"
+  },
+  "payor": [
+    {
+      "display": "Demo Payer CRD Inc."
+    }
+  ]
+}

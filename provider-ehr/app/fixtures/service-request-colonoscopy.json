@@ -1,0 +1,20 @@
+{
+  "resourceType": "ServiceRequest",
+  "id": "demo-service-request-colonoscopy",
+  "status": "draft",
+  "intent": "order",
+  "code": {
+    "coding": [
+      {
+        "system": "http://www.ama-assn.org/go/cpt",
+        "code": "45378",
+        "display": "Colonoscopy, flexible, proximal to splenic flexure; diagnostic"
+      }
+    ],
+    "text": "Colonoscopy, flexible, proximal to splenic flexure; diagnostic"
+  },
+  "subject": {
+    "reference": "Patient/demo-patient-001"
+  },
+  "authoredOn": "2026-06-02"
+}

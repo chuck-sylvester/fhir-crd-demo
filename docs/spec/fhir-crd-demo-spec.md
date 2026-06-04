@@ -1,6 +1,6 @@
 # fhir-crd-demo
 
-A polyglot development sandbox that demonstrates a Coverage Requirements Discovery (CRD) workflow between two independently developed applications:
+**fhir-crd-demo** is a reference application that demonstrates a Coverage Requirements Discovery (CRD) workflow between two independently developed applications:
 
 1. A provider EHR simulator built with a modern Python web stack.
 2. An external payer simulator built with a vanilla PHP 8.5 LAMP stack.
@@ -9,20 +9,18 @@ The project is intended to model the system-to-system collaboration described by
 
 This is a demonstration and learning project. It is not a production prior authorization system, not a complete CMS-0057-F compliance implementation, and not intended to process real patient data.
 
-The initial implementation will use synthetic fixture data rather than full FHIR server persistence. A future extension may integrate the provider EHR simulator directly with a HAPI FHIR Server, as opposed to using a traditional relational database as the data-serving application. The reason for this future approach is to learn more about using HAPI FHIR with a simulated EHR application. If added, the project may host a local HAPI FHIR Server using Docker and may also support connecting to an external HAPI FHIR Server. The connection to a FHIR server would be configured within the app, for example by using a `.env` file to point to the local server or an external server.
+The initial implementation will use synthetic fixture data rather than full FHIR server persistence. A future extension may integrate the provider EHR simulator directly with a HAPI FHIR Server, as opposed to using a traditional relational database as the data-serving application. The reason for this future approach is to learn more about using HAPI FHIR with a simulated EHR application. If added, the project may host a local HAPI FHIR Server using Docker and may also support connecting to an external HAPI FHIR Server.
 
-The application will have the ability to run in a local development environment, using Docker / Docker Desktop on a macOS laptop where useful. The project may also be deployed to Oracle Cloud Infrastructure (OCI) in a "lift-and-shift" configuration, with the Python EHR application running in a dedicated virtual machine within a personal OCI account and the PHP application running within a separate virtual machine in the same OCI account. Networking and permissions will need to be configured so that both applications run properly, are accessible by users through an Internet browser connection, and have the required visibility and permissions to collaborate within the CRD workflow. Details around local and OCI deployment will be defined and documented in separate specification documents, to be created later.
+The application will have the ability to run in a local development environment, using Docker / Docker Desktop on a macOS laptop where useful. The project may also be deployed to Oracle Cloud Infrastructure (OCI) in a "lift-and-shift" configuration, with the Python EHR application and the PHP payer application running in dedicated virtual machines within a personal OCI account. Networking and permissions will be configured so that both applications run properly, are accessible by users through an Internet browser connection, and have the required visibility and permissions to collaborate within the CRD workflow. Details around local and OCI deployment will be defined and documented in separate specification documents, to be created later.
 
 ## Standards Baseline
 
-The initial implementation should use a stable standards baseline and avoid depending on continuously built specification pages for development decisions.
-
-Target standards:
+The reference application will use a stable standards baseline that includes:
 
 - HL7 FHIR R4.
 - CDS Hooks `order-sign` for the initial workflow.
 - CDS Hooks `order-select` as a likely follow-on workflow.
-- HL7 Da Vinci Coverage Requirements Discovery (CRD) Implementation Guide, targeting the current published or implementation-ready STU 2.x version selected during detailed design.
+- HL7 Da Vinci Coverage Requirements Discovery (CRD) Implementation Guide (stable version).
 
 CRD, DTR, and PAS should be treated as related but distinct implementation guide areas:
 
@@ -39,13 +37,8 @@ This project is designed to strengthen skills and understanding in the following
 1. CMS burden reduction and prior authorization modernization initiatives.
 2. Coverage Requirements Discovery (CRD) workflows.
 3. CDS Hooks request and response patterns.
-4. HL7 FHIR standards, resources, and Da Vinci implementation guides.
-5. Full-stack Python development using FastAPI, HTMX, HTTPX, Jinja2 templates, Tailwind CSS, and optional PostgreSQL persistence.
-6. PHP 8.5 application development using a vanilla LAMP architecture without a PHP framework.
-7. Practical system-to-system API design across different technology stacks.
-8. SMART on FHIR, HAPI FHIR Server, DTR, PAS, and related capabilities as future learning extensions.
-9. Connectathon-style implementation thinking and conformance-oriented design.
-10. Retrieval Augmented Generation (RAG) as a future aid for policy, rule, and documentation discovery.
+4. Practical system-to-system API design across different technology stacks.
+5. Connectathon-style implementation thinking and conformance-oriented design.
 
 ## Project Overview and Context
 
@@ -66,7 +59,7 @@ The demonstration simulates a clinical encounter where a patient visits a primar
 
 ### Clinical Scenario
 
-**Patient Profile:** 52-year-old male with a significant family history of colorectal cancer, classified as high risk.
+**Patient Profile:** 55-year-old male who is concerned about his risk for colorectal cancer. The only known family history is his father, who was diagnosed with colorectal cancer when he was 80 and succumbed to the illness when he was 82. Given this, the patient's provider has classified this as a high risk.
 
 **Clinical History:** The patient had a clean screening colonoscopy 5 years ago.
 
@@ -98,7 +91,7 @@ The system consists of two primary applications. Each application has a distinct
 | Payer Environment                                          |
 |                                                            |
 |  PHP/LAMP External Payer CRD Service                       |
-|  Apache + PHP 8.5 + optional MySQL/MariaDB                 |
+|  Apache + PHP 8.5 + optional MariaDB                       |
 |  http://localhost:8080                                     |
 |                                                            |
 |  - CDS Hooks discovery metadata                            |
@@ -116,9 +109,9 @@ Directory: `provider-ehr/`
 
 Default port: `8000`
 
-Suggested stack:
+Technology stack:
 
-- Python 3.12 or higher.
+- Python 3.12.
 - FastAPI for application routes and API endpoints.
 - Jinja2 templates for server-rendered screens.
 - HTMX for lightweight interactive UI behavior.
@@ -144,11 +137,11 @@ Directory: `payer-crd/`
 
 Default port: `8080`
 
-Suggested stack:
+Technology stack:
 
-- PHP 8.5 or higher.
+- PHP 8.5.
 - Apache HTTP Server.
-- MySQL or MariaDB only if payer rules, plans, or audit records need persistence.
+- MariaDB only if payer rules, plans, or audit records need persistence.
 - Plain PHP front controller and routing.
 - No Laravel, Symfony, Slim, or other PHP application framework.
 - Composer only if useful for autoloading, development tooling, or standards-based helper packages.
@@ -236,31 +229,31 @@ Displays payer guidance              Does not render EHR screens
 
 ## Data Specification and Payload Mapping
 
-When the clinician drafts or signs the colonoscopy order, the Python EHR compiles a CDS Hooks payload. The initial implementation should focus on `order-sign`, with `order-select` as a likely follow-on workflow if earlier discovery is desired.
+When the clinician drafts or signs the colonoscopy order, the Python EHR compiles a CDS Hooks payload. The initial implementation should focus on **`order-sign`**, with `order-select` as a likely follow-on workflow if earlier discovery is desired.
 
 ### Critical FHIR Resources
 
 - `Patient`: Contains demographics required for the scenario.
 - `Encounter`: Represents the clinical encounter context, if modeled.
-- `Practitioner` or `PractitionerRole`: Represents the current ordering user for the CDS Hooks context.
+- `Practitioner` or `PractitionerRole`: Represents current ordering user for CDS Hooks context.
 - `Organization`: Represents provider or payer organizations where useful.
 - `Coverage`: Identifies the patient's payer or plan when the demo is ready to model plan-specific behavior.
 - `Condition`: Represents the risk-relevant diagnosis or family history.
   - ICD-10-CM `Z80.0`: Family history of malignant neoplasm of digestive organs.
 - `ServiceRequest`: Represents the ordered colonoscopy.
   - `CPT 45378`: Colonoscopy, flexible, proximal to splenic flexure; diagnostic.
-- `Procedure`: Represents the previous colonoscopy date, set 5 years before the current order in the demo scenario.
+- `Procedure`: Represents previous colonoscopy date (5 years before current order in demo scenario).
 
 ### CDS Hooks Request Contents
 
 The first version should include enough structure to demonstrate the workflow without overbuilding conformance features.
 
-Initial `order-sign` request elements:
+Initial **`order-sign`** request elements:
 
 - `hook`: `order-sign`.
 - `hookInstance`: Unique request identifier.
 - `fhirServer`: Local or simulated FHIR server URL, if modeled.
-- `fhirAuthorization`: Omitted or mocked for the first version unless SMART/FHIR authorization is added.
+- `fhirAuthorization`: Omitted or mocked for first version unless SMART/FHIR authorization is added.
 - `context.userId`: Required current user reference, such as `PractitionerRole/demo-clinician`.
 - `context.patientId`: Required current patient id.
 - `context.encounterId`: Optional current encounter id, if modeled.
@@ -313,7 +306,6 @@ Root-level files should be limited to broad project concerns such as:
 
 - `README.md`: Overall demonstration overview, quick-start summary, and links into each application.
 - `.gitignore`: Shared ignore rules for Python, PHP, local environment files, dependency folders, logs, and generated artifacts.
-- `LICENSE`: Project license, if used.
 - `docs/`: Project-level documentation, including specifications and reference material
 
 Each application should be self-contained:
@@ -333,40 +325,17 @@ The following structure is a proposed initial layout. It may be refined during i
 
 ```text
 fhir-crd-demo/
-|-- provider-ehr/                     # Python provider EHR simulator
-|   |-- app/
-|   |   |-- __init__.py
-|   |   |-- main.py                   # FastAPI application entrypoint
-|   |   |-- config.py                 # Local settings and payer endpoint config
-|   |   |-- cds_client.py             # Sends CDS Hooks requests to payer
-|   |   |-- fhir_factory.py           # Builds demo FHIR resources
-|   |   |-- models.py                 # Pydantic models
-|   |   |-- routes/
-|   |   |   |-- clinician.py          # Clinician-facing routes
-|   |   |   |-- api.py                # Demo API endpoints
-|   |   |-- templates/
-|   |   |   |-- base.html
-|   |   |   |-- patient_chart.html
-|   |   |   |-- order_workflow.html
-|   |   |   |-- cds_cards.html
-|   |   |-- static/
-|   |   |   |-- css/
-|   |   |   |-- js/
-|   |   |-- fixtures/
-|   |       |-- patient.json
-|   |       |-- condition-family-history.json
-|   |       |-- service-request-colonoscopy.json
-|   |       |-- prior-colonoscopy.json
-|   |-- tests/
-|   |-- .env                          # Local-only configuration, not committed
-|   |-- .env.example                  # Committed environment template
-|   |-- requirements.txt
-|   |-- Dockerfile
-|
+|-- docs/                             # Project-wide documents
+|   |-- reference/                    # Useful reference material
+|   |-- spec/                         # High-level and detailed technical specifications
+|       |-- fhir-crd-demo-spec.md
+|       |-- cds-hooks-api-contract.md
+|       |-- provider-ehr-spec.md
+|       |-- payer-crd-spec.md
 |-- payer-crd/                        # PHP/LAMP external payer simulator
 |   |-- public/
 |   |   |-- index.php                 # Front controller
-|   |   |-- .htaccess                 # Optional local Apache rewrite rules
+|   |   |-- .htaccess                 # Apache rewrite rules
 |   |-- src/
 |   |   |-- Http/
 |   |   |   |-- Request.php
@@ -386,15 +355,39 @@ fhir-crd-demo/
 |   |-- tests/
 |   |-- .env                          # Local-only configuration, not committed
 |   |-- .env.example                  # Committed environment template
-|   |-- composer.json                 # Optional autoloading/dev tooling
-|   |-- apache.conf                   # Optional local virtual host example
-|
-|-- docs/                             # Project-wide documents
-|   |-- reference/                    # Useful reference material
-|   |-- spec/                         # High-level and detailed technical specifications
-|-- README.md
+|   |-- composer.json                 # Autoloading and dev tooling
+|   |-- apache.conf                   # Virtual host template for OCI deployment
+|-- provider-ehr/                     # Python provider EHR simulator
+|   |-- app/
+|   |   |-- __init__.py
+|   |   |-- main.py                   # FastAPI application entrypoint
+|   |   |-- config.py                 # Settings and payer endpoint configuration
+|   |   |-- cds_client.py             # Sends CDS Hooks requests to payer
+|   |   |-- fhir_factory.py           # Builds and assembles FHIR resources
+|   |   |-- models.py                 # Pydantic models
+|   |   |-- routes/
+|   |   |   |-- clinician.py          # Clinician-facing routes
+|   |   |   |-- api.py                # Debug API endpoints
+|   |   |-- templates/
+|   |   |   |-- base.html
+|   |   |   |-- patient_chart.html
+|   |   |   |-- cds_cards.html
+|   |   |-- static/
+|   |   |   |-- css/
+|   |   |   |-- js/
+|   |   |-- fixtures/
+|   |       |-- patient.json
+|   |       |-- condition-family-history.json
+|   |       |-- service-request-colonoscopy.json
+|   |       |-- prior-colonoscopy.json
+|   |       |-- coverage.json
+|   |-- tests/
+|   |-- .env                          # Local-only configuration, not committed
+|   |-- .env.example                  # Committed environment template
+|   |-- requirements.txt
+|   |-- Dockerfile
 |-- .gitignore
-|-- LICENSE
+|-- README.md
 ```
 
 ## Suggested HTTP Endpoints
@@ -413,14 +406,11 @@ GET  /debug/last-crd-response   Inspect last payer CDS Cards response
 ### PHP Payer CRD Service
 
 ```text
-GET  /cds-services              CDS Hooks discovery endpoint
-POST /cds-services/crd-order-sign
-                                CRD endpoint for order-sign
-POST /cds-services/crd-order-select
-                                Optional future CRD endpoint for order-select
-GET  /questionnaires/colonoscopy-risk
-                                Placeholder DTR-style questionnaire or checklist
-GET  /debug/rules               Optional local-only rule inspection endpoint
+GET  /cds-services                     CDS Hooks discovery endpoint
+POST /cds-services/crd-order-sign      CRD endpoint for order-sign
+POST /cds-services/crd-order-select    Optional future CRD endpoint for order-select
+GET  /questionnaires/colonoscopy-risk  Placeholder DTR-style questionnaire/checklist
+GET  /debug/rules                      Optional local-only rule inspection endpoint
 ```
 
 ## Development Workflow
@@ -430,15 +420,15 @@ The two applications should be runnable and testable independently.
 ```text
 Terminal 1: start PHP/LAMP payer service
 Terminal 2: start Python provider EHR service
-Browser:    open Python EHR at http://localhost:8000
+   Browser: open Python EHR at http://localhost:8000
 ```
 
 ### Prerequisites
 
-- Python 3.12 or higher.
-- PHP 8.5 or higher, installed via Homebrew (`brew install php`).
-- Apache HTTP Server, installed via Homebrew (`brew install httpd`). The Homebrew version is used instead of the macOS system Apache to allow full control over modules, configuration, and version.
-- MySQL or MariaDB if persistence is added to the payer application.
+- Python 3.12.
+- PHP 8.5, installed via Homebrew (`brew install php`).
+- Apache HTTP Server, installed via Homebrew (`brew install httpd`).
+- MariaDB if persistence is added to the payer application.
 - `curl`, Postman, Insomnia, or a similar API testing tool.
 
 ### Quick Start: Development Mode
@@ -463,8 +453,8 @@ The payer application runs under Homebrew Apache and PHP-FPM. Complete the one-t
 
    ```bash
    cd provider-ehr
-   python -m venv venv
-   source venv/bin/activate
+   python3.12 -m venv .venv
+   source .venv/bin/activate
    pip install -r requirements.txt
    uvicorn app.main:app --reload --port 8000
    ```
@@ -483,11 +473,11 @@ The payer application runs under Homebrew Apache and PHP-FPM. Complete the one-t
 
 ### Local Apache Configuration (macOS)
 
-This is a one-time setup step. Homebrew PHP no longer ships `mod_php`; the current integration approach is PHP-FPM with `mod_proxy_fcgi`, where Apache forwards PHP requests to a separate PHP-FPM process pool.
+One-time setup step. Homebrew PHP no longer ships `mod_php`; the current integration approach is PHP-FPM with `mod_proxy_fcgi`, where Apache forwards PHP requests to a separate PHP-FPM process pool.
 
 #### Enable required Apache modules
 
-In `/opt/homebrew/etc/httpd/httpd.conf`, uncomment or add the following `LoadModule` directives:
+In `/opt/homebrew/etc/httpd/httpd.conf`, ensure the following `LoadModule` directives are uncommented:
 
 ```apache
 LoadModule proxy_module lib/httpd/modules/mod_proxy.so
@@ -495,36 +485,40 @@ LoadModule proxy_fcgi_module lib/httpd/modules/mod_proxy_fcgi.so
 LoadModule rewrite_module lib/httpd/modules/mod_rewrite.so
 ```
 
-Also ensure the virtual hosts include is active (uncomment if needed):
+#### Set DocumentRoot and Directory
+
+Rather than using a separate virtual host configuration file, set the `DocumentRoot` and `<Directory>` blocks directly in `/opt/homebrew/etc/httpd/httpd.conf`. Replace the existing `DocumentRoot` and matching `<Directory>` block with:
 
 ```apache
-Include /opt/homebrew/etc/httpd/extra/httpd-vhosts.conf
+DocumentRoot "/path/to/fhir-crd-demo/payer-crd/public"
+<Directory "/path/to/fhir-crd-demo/payer-crd/public">
+    Options Indexes FollowSymLinks
+    AllowOverride All
+    Require all granted
+</Directory>
 ```
 
-#### Virtual host configuration
+Replace `/path/to/fhir-crd-demo` with the actual repository path on disk (e.g. `/Users/yourname/swdev/cps/fhir-crd-demo`).
 
-Add the following block to `/opt/homebrew/etc/httpd/extra/httpd-vhosts.conf`, replacing the path placeholder with the actual repository location on disk:
+`AllowOverride All` is required so that the `.htaccess` file in `payer-crd/public/` can apply the rewrite rules that route all requests through the front controller (`index.php`).
+
+The `httpd-vhosts.conf` include does **not** need to be enabled for this setup. Leave it commented out in `httpd.conf`.
+
+#### PHP handler
+
+The Homebrew Apache default config includes a global `<FilesMatch>` block that routes all `.php` requests through PHP-FPM:
 
 ```apache
-<VirtualHost *:8080>
-    DocumentRoot "/path/to/fhir-crd-demo/payer-crd/public"
-    ServerName localhost
-
-    <Directory "/path/to/fhir-crd-demo/payer-crd/public">
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    ProxyPassMatch ^/(.*\.php(/.*)?)$ fcgi://127.0.0.1:9000/path/to/fhir-crd-demo/payer-crd/public/$1
-</VirtualHost>
+<FilesMatch \.php$>
+    SetHandler "proxy:fcgi://127.0.0.1:9000"
+</FilesMatch>
 ```
 
-A committed `payer-crd/apache.conf` file in the repository contains a copy of this block with placeholder paths for reference and to document the expected virtual host shape.
+This block handles PHP execution for the payer application automatically; no additional `ProxyPassMatch` directive is needed when using the direct `DocumentRoot` approach.
 
 #### PHP-FPM port
 
-Homebrew PHP-FPM listens on TCP port 9000 by default. Confirm this matches the `ProxyPassMatch` directive by checking the `listen` value in `/opt/homebrew/etc/php/8.5/php-fpm.d/www.conf`.
+Homebrew PHP-FPM listens on TCP port 9000 by default. Confirm this matches the `SetHandler` directive above by checking the `listen` value in `/opt/homebrew/etc/php/8.5/php-fpm.d/www.conf`.
 
 #### Service management
 
@@ -557,10 +551,35 @@ sudo dnf install httpd php php-fpm
 sudo apt install apache2 php php-fpm
 ```
 
-The application code is fully portable. The virtual host block in `payer-crd/apache.conf` applies directly with updated paths. Key differences between the Homebrew and Linux environments:
+The application code is fully portable. On OCI, **do not edit the main `httpd.conf` directly** for application routing. Instead, drop a dedicated virtual host configuration file into the appropriate conf directory:
+
+- Oracle Linux: `/etc/httpd/conf.d/fhir-crd.conf`
+- Ubuntu: `/etc/apache2/sites-available/fhir-crd.conf` (then enable with `a2ensite`)
+
+The committed `payer-crd/apache.conf` file serves as the template for this conf file. Copy it to the appropriate location and update the paths:
+
+```apache
+<VirtualHost *:8080>
+    DocumentRoot "/var/www/fhir-crd-demo/payer-crd/public"
+    ServerName <payer-vm-hostname-or-ip>
+
+    <Directory "/var/www/fhir-crd-demo/payer-crd/public">
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    <FilesMatch \.php$>
+        SetHandler "proxy:fcgi://127.0.0.1:9000"
+    </FilesMatch>
+</VirtualHost>
+```
+
+Key differences between the Homebrew (macOS) and Linux (OCI) environments:
 
 | | macOS (Homebrew) | OCI Linux |
 |---|---|---|
+| Apache config approach | `DocumentRoot` set directly in `httpd.conf` | Dedicated conf file in `conf.d/` or `sites-available/` |
 | Apache config root | `/opt/homebrew/etc/httpd/` | `/etc/httpd/conf.d/` or `/etc/apache2/sites-available/` |
 | Document root convention | local repository path | `/var/www/fhir-crd-demo/payer-crd/public` |
 | PHP-FPM socket | TCP `127.0.0.1:9000` | TCP or Unix socket; check `/etc/php-fpm.d/www.conf` |
@@ -570,9 +589,9 @@ The application code is fully portable. The virtual host block in `payer-crd/apa
 
 OCI VCN security lists and instance-level firewall rules must permit:
 
-- Inbound to the Python EHR VM on port 8000 (or 80/443) from the internet, for clinician browser access.
-- Inbound to the PHP payer VM on port 8080 from the Python EHR VM's private subnet IP, for CDS Hooks calls.
-- Internet-facing access to the PHP payer VM is not required; payer-to-provider traffic stays on the private subnet.
+- Inbound to Python EHR VM on port 8000 (or 80/443) from the internet, for clinician browser access.
+- Inbound to PHP payer VM on port 8080 from the Python EHR VM's private subnet IP, for CDS Hooks calls.
+- Internet-facing access to PHP payer VM is not required; payer-to-provider traffic stays on private subnet.
 
 The payer endpoint URL in the Python EHR application must be configurable via `.env` so that it can point to `http://localhost:8080` locally and to the payer VM's private IP or hostname on OCI.
 
@@ -613,7 +632,6 @@ The payer endpoint URL in the Python EHR application must be configurable via `.
 
 The following items do not need to be resolved before the initial specification is useful, but they should be clarified in future specification updates:
 
-- Whether the project will rename the current spec file from `fhr-crd-demo-spec.md` to `fhir-crd-demo-spec.md` for consistency with the repository name.
 - The exact Da Vinci CRD STU 2.x version to use as the implementation baseline.
 - Whether HAPI FHIR will remain a future extension or become part of an earlier standards-alignment phase.
 - The detailed OCI deployment architecture, including VM sizing, networking topology, TLS termination, and whether a reverse proxy (nginx or Apache mod_proxy) will front either application.

@@ -52,10 +52,11 @@ Debug screens (/debug/*)       Rule evaluation engine
 
 **Python key files:**
 - `app/main.py` — FastAPI entrypoint
+- `app/config.py` — Pydantic-Settings configuration; exposes module-level `settings` singleton
 - `app/fhir_factory.py` — assembles FHIR resources from fixtures
 - `app/cds_client.py` — sends CDS Hooks requests via HTTPX
 - `app/models.py` — Pydantic models for CDS Hooks request/response
-- `app/fixtures/` — JSON FHIR resources (Patient, Condition, ServiceRequest, Procedure)
+- `app/fixtures/` — JSON FHIR resources: `patient.json`, `condition-family-history.json`, `service-request-colonoscopy.json`, `prior-colonoscopy.json`, `coverage.json`
 
 **PHP key files:**
 - `public/index.php` — front controller, all requests route here
@@ -87,10 +88,11 @@ cd payer-crd && ./vendor/bin/phpunit
 - `context.draftOrders`: FHIR Bundle with the ServiceRequest
 - `prefetch`: bundled FHIR resources (Patient, Condition, Coverage, prior Procedure)
 
-**CDS Cards** — the payer response. Card types used in this demo:
+**CDS Cards** — the payer response. Card `indicator` values used in this demo:
 - `info` — high-risk family history supports 5-year interval
-- `warning` — missing documentation or average-risk classification
-- `suggestion` — documentation checklist link (DTR placeholder)
+- `warning` — missing documentation or high-risk classification not confirmed
+
+Each card may include a `links` array with an `absolute` link to a DTR-style documentation checklist (placeholder in Phase 1).
 
 **FHIR resources in the scenario:**
 - `Condition` with ICD-10-CM `Z80.0` — family history of colorectal cancer (high-risk indicator)

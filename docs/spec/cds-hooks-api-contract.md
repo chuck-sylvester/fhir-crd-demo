@@ -29,8 +29,8 @@ This document defines the exact JSON structures exchanged between the Python Pro
 
 | Method | Path | Owner | Purpose |
 |--------|------|-------|---------|
-| `GET` | `/cds-services` | PHP Payer | CDS Hooks discovery |
-| `POST` | `/cds-services/crd-order-sign` | PHP Payer | CRD service for order-sign |
+| `GET` | `/cds-services` | Bun Payer | CDS Hooks discovery |
+| `POST` | `/cds-services/crd-order-sign` | Bun Payer | CRD service for order-sign |
 
 ---
 
@@ -307,7 +307,7 @@ Represents the patient's insurance coverage. Minimal in Phase 1; used for future
 
 ## 6. CDS Card Definitions
 
-The PHP payer returns cards from this defined set based on rule evaluation outcomes.
+The Bun payer returns cards from this defined set based on rule evaluation outcomes.
 
 ### 6.1 High-Risk Coverage Info Card
 

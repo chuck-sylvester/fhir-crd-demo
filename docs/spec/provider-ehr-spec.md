@@ -8,7 +8,7 @@
 
 The Provider EHR Simulator is a Python web application that plays the role of an Electronic Health Record system in the CRD workflow. It gives a simulated clinician a patient chart view, a draft colonoscopy order interface, and a panel that displays CDS guidance cards returned by the payer.
 
-**The application acts as a CDS Hooks client.** When the clinician triggers coverage requirements discovery, the EHR assembles a CDS Hooks **`order-sign`** request and posts it to the PHP Payer CRD Service, receives CDS Cards in response, and renders those cards inside the clinical workflow.  
+**The application acts as a CDS Hooks client.** When the clinician triggers coverage requirements discovery, the EHR assembles a CDS Hooks **`order-sign`** request and posts it to the Bun + Hono Payer CRD Service, receives CDS Cards in response, and renders those cards inside the clinical workflow.  
 
 In Phase 1, the FHIR resources included in the **`order-sign`** request — the patient record, active conditions, draft order, prior procedure history, and coverage information — are read from pre-authored JSON files on disk (called fixtures) rather than from a live clinical database or a FHIR server.
 
@@ -67,17 +67,18 @@ provider-ehr/
 |   |-- models.py                # Pydantic models for CDS Hooks structures
 |   |-- fhir_factory.py          # Loads fixtures and assembles the CDS Hooks payload
 |   |-- cds_client.py            # Sends the CDS Hooks request to the payer via HTTPX
+|   |-- colors.py                # ANSI color codes for development terminal output
 |   |-- routes/
-|   |   |-- __init__.py
-|   |   |-- clinician.py         # Clinician-facing HTML routes
+|   |   |-- clinician.py         # Clinician-facing HTML routes; owns Jinja2Templates setup
 |   |   |-- api.py               # Debug JSON routes
 |   |-- templates/
-|   |   |-- base.html            # HTML layout shell
+|   |   |-- base.html            # HTML layout shell; loads Tailwind and HTMX via CDN
+|   |   |-- dashboard.html       # Clinician dashboard (GET /)
 |   |   |-- patient_chart.html   # Patient chart and order panel
 |   |   |-- cds_cards.html       # CDS Cards partial for HTMX insertion
 |   |-- static/
-|   |   |-- css/                 # Compiled or CDN-linked Tailwind CSS
-|   |   |-- js/                  # HTMX library (or CDN link)
+|   |   |-- css/                 # Reserved for future compiled Tailwind output (empty in Phase 1)
+|   |   |-- js/                  # Reserved for future local JS assets (empty in Phase 1)
 |   |-- fixtures/
 |       |-- patient.json
 |       |-- condition-family-history.json
@@ -105,9 +106,13 @@ Document these required keys (no values):
 
 | Key | Description |
 |-----|-------------|
-| `PAYER_CRD_URL` | Base URL of the PHP Payer CRD Service, e.g. `http://localhost:8080` |
+| `APP_NAME` | Application display name, e.g. `Provider EHR (Python)` |
+| `APP_DESCRIPTION` | Short description of the application |
+| `APP_VERSION` | Application version string, e.g. `0.1.0` |
 | `APP_ENV` | Runtime environment label: `development` or `production` |
+| `APP_DEBUG` | Enable FastAPI debug mode: `true` or `false` |
 | `LOG_LEVEL` | Logging verbosity: `DEBUG`, `INFO`, `WARNING` |
+| `PAYER_CRD_URL` | Base URL of the Bun + Hono Payer CRD Service, e.g. `http://localhost:8080` |
 
 ### 5.2 `config.py`
 
@@ -118,8 +123,10 @@ Fields to expose:
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `app_name` | `str` | `Provider EHR (Python)` | Application display name |
+| `app_description` | `str` | `app description` | Short application description |
 | `app_version` | `str` | `0.0.0.0` | Application version string |
 | `app_env` | `str` | `development` | Runtime environment |
+| `app_debug` | `bool` | `True` | FastAPI debug mode flag |
 | `log_level` | `str` | `INFO` | Log level string |
 | `payer_crd_url` | `str` | — | Base URL of the payer service; no trailing slash; required with no default |
 
@@ -392,7 +399,7 @@ These routes render HTML responses using Jinja2 templates.
 
 Returns the clinician dashboard. For Phase 1 this is a simple page with a link to the demo patient chart. No dynamic content required beyond confirming the app is running.
 
-Template: `base.html` extended with a minimal welcome and navigation section, or a dedicated `dashboard.html` if preferred.
+Template: `dashboard.html`
 
 ---
 
@@ -404,6 +411,7 @@ The chart displays:
 - Patient name, age, and gender derived from the fixture
 - The active condition (family history of colorectal cancer)
 - The draft colonoscopy order summary
+- The prior procedure history (most recent colonoscopy with performed date and elapsed years)
 - A "Check Coverage Requirements" trigger button that initiates the CRD flow
 
 The CRD trigger is an HTMX-enhanced button. When clicked it issues an HTTP POST to `/orders/colonoscopy/crd` and swaps the response HTML into a designated target element on the page (the CDS Cards panel).
@@ -455,7 +463,11 @@ Templates use Jinja2 syntax. Tailwind CSS is applied for styling via CDN link in
 
 The layout shell. Defines the HTML document structure, the `<head>` block with meta tags and CSS and JavaScript CDN links, a simple navigation bar, and a `content` block that child templates override.
 
-### 11.2 `patient_chart.html`
+### 11.2 `dashboard.html`
+
+Extends `base.html`. The clinician entry point. Displays a status badge confirming the application is running, the application name and description, and a link to the demo patient chart. Provides a clear Phase 1 scope note.
+
+### 11.3 `patient_chart.html`
 
 Extends `base.html`. Displays the following sections:
 
@@ -475,7 +487,7 @@ Extends `base.html`. Displays the following sections:
 
 Below the button, a container `div` serves as the HTMX swap target for the CDS Cards partial.
 
-### 11.3 `cds_cards.html`
+### 11.4 `cds_cards.html`
 
 A partial template — it does not extend `base.html`. It is returned directly by the `POST /orders/colonoscopy/crd` route and inserted into the patient chart by HTMX.
 
@@ -496,11 +508,13 @@ If the cards list is empty, display a neutral message indicating that the payer 
 
 Responsibilities:
 
-- Create the FastAPI application instance with a title and description
+- Configure Python logging before importing any application modules
+- Create the FastAPI application instance with a title, description, and version
 - Mount the `app/static/` directory at the `/static` URL path
-- Configure Jinja2 templates pointing to `app/templates/`
 - Register the clinician router from `routes/clinician.py`
 - Register the API/debug router from `routes/api.py`
+
+Jinja2 template configuration belongs in `routes/clinician.py`, not in `main.py`, to avoid circular imports between the application factory and the router modules.
 
 The `main.py` file should contain no business logic. All logic belongs in the modules it imports.
 
@@ -588,13 +602,14 @@ Follow this order when implementing Phase 1. Each step has a verifiable outcome 
 | 6 | Implement `models.py` | Pydantic model imports succeed with no errors | Complete |
 | 7 | Implement `fhir_factory.py` | `python -c "from app.fhir_factory import build_crd_request; print(build_crd_request())"` prints a model | Complete |
 | 8 | Run `test_fhir_factory.py` tests | All tests pass | Not started |
-| 9 | Create `base.html` with CDN links for Tailwind and HTMX | HTML is valid; CDN resources load in browser | Not started |
-| 10 | Implement `main.py` with template and static mounts | `uvicorn app.main:app --reload --port 8000` starts without error | Stub |
-| 11 | Implement `GET /` and `GET /patients/{patient_id}` in `routes/clinician.py` | Browser shows patient chart at `http://localhost:8000/patients/demo-patient-001` | Not started |
-| 12 | Create `patient_chart.html` displaying all fixture data | Patient name, condition, order, and prior procedure appear on the page | Not started |
-| 13 | Implement `cds_client.py` | Module imports succeed; `_last_request` and `_last_response` are `None` at startup | Stub |
-| 14 | Implement `POST /orders/colonoscopy/crd` in `routes/clinician.py` | With the PHP payer running, clicking the button returns cards | Not started |
-| 15 | Create `cds_cards.html` partial | Cards render in the page panel with correct indicator colors | Not started |
-| 16 | Implement `routes/api.py` debug routes | `GET /debug/last-crd-request` and `GET /debug/last-crd-response` return JSON | Not started |
-| 17 | Run full test suite | `python -m pytest` passes | Not started |
-| 18 | Run end-to-end manual test | Full browser workflow from patient chart to CDS Cards with real payer | Not started |
+| 9 | Create `base.html` with CDN links for Tailwind and HTMX | HTML is valid; CDN resources load in browser | Complete |
+| 10 | Create `dashboard.html` extending `base.html` | `GET /` renders status badge and patient link | Complete |
+| 11 | Implement `main.py` with static mount and router registration | `uvicorn app.main:app --reload --port 8000` starts without error | Complete |
+| 12 | Implement `GET /` and `GET /patients/{patient_id}` in `routes/clinician.py` | Browser shows patient chart at `http://localhost:8000/patients/demo-patient-001` | Complete |
+| 13 | Create `patient_chart.html` displaying all fixture data | Patient name, condition, order, prior procedure, and CRD button appear on the page | Complete |
+| 14 | Implement `cds_client.py` | Module imports succeed; `_last_request` and `_last_response` are `None` at startup | Complete |
+| 15 | Implement `POST /orders/colonoscopy/crd` in `routes/clinician.py` | With the payer running, clicking the button returns cards | Complete |
+| 16 | Create `cds_cards.html` partial | Cards render in the page panel with correct indicator colors | Not started |
+| 17 | Implement `routes/api.py` debug routes | `GET /debug/last-crd-request` and `GET /debug/last-crd-response` return JSON | Complete |
+| 18 | Run full test suite | `python -m pytest` passes | Not started |
+| 19 | Run end-to-end manual test | Full browser workflow from patient chart to CDS Cards with real payer | Not started |

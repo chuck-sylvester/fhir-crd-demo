@@ -1,0 +1,94 @@
+{# -------------------------------------------------------------------------
+   dashboard.html — Clinician dashboard (GET /)
+   -------------------------------------------------------------------------
+   Entry point for the EHR simulator. Extends base.html and confirms that
+   the application is running. Provides a link to the demo patient chart.
+
+   Phase 1: minimal content — status confirmation and navigation only.
+   Full dashboard design (patient list, encounter queue, etc.) is deferred
+   to a later phase.
+
+   CONTEXT VARIABLES PROVIDED BY routes/clinician.py -> dashboard()
+   ------------------------------------------------------------------
+   app_name   (str) — application display name from settings
+   patient_id (str) — hardcoded demo patient id: "demo-patient-001"
+
+   HOW {% extends %} WORKS
+   ------------------------
+   The {% extends "base.html" %} tag must be the first statement in the
+   file. It tells Jinja2 to use base.html as the layout shell and to fill
+   in the blocks defined below. Any content written outside a {% block %}
+   in a child template is ignored.
+   -------------------------------------------------------------------------
+#}
+{% extends "base.html" %}
+
+
+{# Override the <title> block. {{ super() }} inserts the parent's default
+   title text ("Provider EHR") so the full title reads "Dashboard — Provider EHR". #}
+{% block title %}Dashboard — {{ super() }}{% endblock %}
+
+
+{% block content %}
+
+{# -----------------------------------------------------------------------
+   Status card — confirms the application is running.
+   Tailwind classes used here:
+     bg-white        white card background
+     rounded-lg      rounded corners
+     shadow          subtle drop shadow
+     p-8             padding inside the card (8 units = 2rem)
+     mb-6            bottom margin separating this card from the next
+----------------------------------------------------------------------- #}
+<div class="bg-white rounded-lg shadow p-8 mb-6">
+
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">
+        {{ app_name }}
+    </h1>
+
+    <p class="text-gray-500 mb-6">Provider EHR Simulator — CRD Demo</p>
+
+    {# Status badge — green indicates the application started and rendered
+       this page successfully. The inline-flex layout keeps the dot and
+       text on the same line regardless of surrounding flow. #}
+    <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200
+                text-green-800 text-sm font-medium px-4 py-2 rounded-full mb-8">
+        {# Unicode bullet used as a simple status dot. A real app would use
+           an SVG icon or an animated pulse indicator from a component library. #}
+        <span class="text-green-500">&#x25CF;</span>
+        Application running
+    </div>
+
+    {# -----------------------------------------------------------------------
+       Patient chart link
+       -----------------------------------------------------------------------
+       {{ patient_id }} outputs the value passed in the context dict from the
+       route handler. In Phase 1 this is always "demo-patient-001".
+
+       The link uses Tailwind's utility classes to style it as a prominent
+       button. In a later phase this becomes a patient list or search result.
+    ----------------------------------------------------------------------- #}
+    <div>
+        <p class="text-gray-600 mb-4">
+            Phase 1 demo patient:
+        </p>
+        <a href="/patients/{{ patient_id }}"
+           class="inline-block bg-blue-700 hover:bg-blue-800 text-white
+                  font-medium px-6 py-3 rounded-lg transition-colors">
+            Open Patient Chart &rarr;
+        </a>
+    </div>
+
+</div>
+
+{# -----------------------------------------------------------------------
+   Phase note — visible reminder of current implementation scope.
+   This kind of annotation is useful during active development to keep
+   the demo context clear when other developers (or your future self)
+   open the page.
+----------------------------------------------------------------------- #}
+<p class="text-sm text-gray-400">
+    Phase 1 &mdash; Static fixtures &bull; Basic CRD request/response exchange
+</p>
+
+{% endblock %}

@@ -11,7 +11,7 @@ This is a demonstration and learning project. It is not a production prior autho
 
 The initial implementation will use synthetic fixture data rather than full FHIR server persistence. A future extension may integrate the provider EHR simulator directly with a HAPI FHIR Server, as opposed to using a traditional relational database as the data-serving application. The reason for this future approach is to learn more about using HAPI FHIR with a simulated EHR application. If added, the project may host a local HAPI FHIR Server using Docker and may also support connecting to an external HAPI FHIR Server.
 
-The application will have the ability to run in a local development environment, using Docker / Docker Desktop on a macOS laptop where useful. The project may also be deployed to Oracle Cloud Infrastructure (OCI) in a "lift-and-shift" configuration, with the Python EHR application and the PHP payer application running in dedicated virtual machines within a personal OCI account. Networking and permissions will be configured so that both applications run properly, are accessible by users through an Internet browser connection, and have the required visibility and permissions to collaborate within the CRD workflow. Details around local and OCI deployment will be defined and documented in separate specification documents, to be created later.
+The application will have the ability to run in a local development environment, using Docker / Docker Desktop on a macOS laptop where useful. The project may also be deployed to Oracle Cloud Infrastructure (OCI) in a "lift-and-shift" configuration, with the Python EHR application and the Bun payer application running in dedicated virtual machines within a personal OCI account. Networking and permissions will be configured so that both applications run properly, are accessible by users through an Internet browser connection, and have the required visibility and permissions to collaborate within the CRD workflow. Details around local and OCI deployment will be defined and documented in separate specification documents, to be created later.
 
 ## Standards Baseline
 
@@ -126,7 +126,7 @@ Responsibilities:
 - Display the patient chart and draft colonoscopy order.
 - Assemble FHIR resources needed by the CRD request.
 - Build a CDS Hooks request for `order-sign` and, optionally, `order-select`.
-- Send the request to the PHP payer CRD service.
+- Send the request to the Bun + Hono payer CRD service.
 - Receive CDS Cards from the payer.
 - Render payer guidance inside the simulated EHR workflow.
 - Record demo events locally for debugging and learning, if persistence is enabled.
@@ -159,7 +159,7 @@ Responsibilities:
 
 ## System Collaboration Model
 
-The provider EHR and payer service should be treated as separate applications that communicate over HTTP. The Python application should not call PHP as an internal helper, and the PHP application should not render the EHR UI.
+The provider EHR and payer service should be treated as separate applications that communicate over HTTP. The Python application should not call the Bun application as an internal helper, and the Bun application should not render the EHR UI.
 
 ```text
 Python Provider EHR                  Bun + Hono Payer CRD Service
@@ -209,26 +209,24 @@ Displays payer guidance              Does not render EHR screens
 ## Request and Response Flow
 
 ```text
-+-----------+       +-------------+       +----------------+
-| Clinician |       | Python EHR  |       | PHP Payer CRD  |
-+-----------+       +-------------+       +----------------+
-      |                    |                       |
-      | Draft order        |                       |
-      |------------------->|                       |
-      |                    | Build FHIR context    |
-      |                    | locally               |
-      |                    | CDS Hooks request     |
-      |                    |---------------------->|
-      |                    |                       | Validate payload
-      |                    |                       | Evaluate rules
-      |                    | CDS Cards response    |
-      |                    |<----------------------|
-      | View guidance      |                       |
-      |<-------------------|                       |
-      |                    |                       |
++-----------+       +-------------+       +--------------------+
+| Clinician |       | Python EHR  |       | Bun + Hono Payer   |
++-----------+       +-------------+       +--------------------+
+      |                    |                         |
+      | Draft order        |                         |
+      |------------------->|                         |
+      |                    | Build FHIR context      |
+      |                    | locally                 |
+      |                    | CDS Hooks request       |
+      |                    |------------------------>|
+      |                    |                         | Validate payload
+      |                    |                         | Evaluate rules
+      |                    | CDS Cards response      |
+      |                    |<------------------------|
+      | View guidance      |                         |
+      |<-------------------|                         |
+      |                    |                         |
 ```
-
-> **Note:** "PHP Payer CRD" in earlier versions of this diagram referred to the original PHP/LAMP design. The payer is now implemented with Bun + Hono.
 
 ## Data Specification and Payload Mapping
 
@@ -267,7 +265,7 @@ For `order-select`, if added later, the request should account for the fact that
 
 ### Expected Payer Response
 
-The PHP payer service evaluates the payload and returns CDS Cards.
+The Bun payer service evaluates the payload and returns CDS Cards.
 
 Example card outcomes:
 
@@ -308,7 +306,7 @@ The repository should remain intentionally simple at the root level. The root di
 Root-level files should be limited to broad project concerns such as:
 
 - `README.md`: Overall demonstration overview, quick-start summary, and links into each application.
-- `.gitignore`: Shared ignore rules for Python, PHP, local environment files, dependency folders, logs, and generated artifacts.
+- `.gitignore`: Shared ignore rules for Python, Bun/Node, local environment files, dependency folders, logs, and generated artifacts.
 - `docs/`: Project-level documentation organized into three subdirectories: `spec/` (architecture and design specifications), `guides/` (per-component learning guides and implementation references, organized under `provider-ehr/` and `payer-crd/` subfolders), and `reference/` (external reference material)
 
 Each application should be self-contained:
@@ -341,8 +339,8 @@ fhir-crd-demo/
 |       |-- cds-hooks-api-contract.md
 |       |-- provider-ehr-spec.md
 |       |-- payer-crd-spec.md
-|-- payer-crd/                        # Bun + Hono external payer simulator
-|   |-- src/
+|-- payer-crd/                        # Bun + Hono external payer simulator (planned)
+|   |-- src/                          # (planned — implementation not yet started)
 |   |   |-- index.ts                  # Application entrypoint; Hono app + Bun.serve()
 |   |   |-- routes/
 |   |   |   |-- discovery.ts          # GET /cds-services
@@ -353,49 +351,51 @@ fhir-crd-demo/
 |   |   |   |-- cardFactory.ts
 |   |   |-- types/
 |   |       |-- cdsHooks.ts           # TypeScript types for CDS Hooks request/response
-|   |-- fixtures/
+|   |-- fixtures/                     # (planned)
 |   |   |-- cds-discovery.json
 |   |   |-- cards-covered-high-risk.json
 |   |   |-- cards-missing-documentation.json
-|   |-- tests/
+|   |-- tests/                        # (planned)
 |   |   |-- rules/
 |   |   |   |-- colonoscopyRuleEngine.test.ts
 |   |   |-- routes/
 |   |       |-- discovery.test.ts
 |   |       |-- crd.test.ts
 |   |-- .env                          # Local-only configuration, not committed
-|   |-- .env.example                  # Committed environment template
-|   |-- package.json                  # Bun package manifest
-|   |-- tsconfig.json                 # TypeScript configuration
+|   |-- .env.example                  # Committed environment template (planned)
+|   |-- package.json                  # Bun package manifest (planned)
+|   |-- tsconfig.json                 # TypeScript configuration (planned)
 |-- provider-ehr/                     # Python provider EHR simulator
 |   |-- app/
 |   |   |-- __init__.py
 |   |   |-- main.py                   # FastAPI application entrypoint
 |   |   |-- config.py                 # Settings and payer endpoint configuration
 |   |   |-- cds_client.py             # Sends CDS Hooks requests to payer
+|   |   |-- colors.py                 # ANSI color codes for development terminal output
 |   |   |-- fhir_factory.py           # Builds and assembles FHIR resources
 |   |   |-- models.py                 # Pydantic models
 |   |   |-- routes/
-|   |   |   |-- clinician.py          # Clinician-facing routes
-|   |   |   |-- api.py                # Debug API endpoints
+|   |   |   |-- clinician.py          # Clinician-facing routes; owns Jinja2Templates setup
+|   |   |   |-- api.py                # Debug JSON endpoints
 |   |   |-- templates/
-|   |   |   |-- base.html
-|   |   |   |-- patient_chart.html
-|   |   |   |-- cds_cards.html
+|   |   |   |-- base.html             # Layout shell; loads Tailwind and HTMX via CDN
+|   |   |   |-- dashboard.html        # Clinician dashboard (GET /)
+|   |   |   |-- patient_chart.html    # Patient chart and CRD trigger
+|   |   |   |-- cds_cards.html        # CDS Cards partial for HTMX insertion
 |   |   |-- static/
-|   |   |   |-- css/
-|   |   |   |-- js/
+|   |   |   |-- css/                  # (reserved — empty in Phase 1)
+|   |   |   |-- js/                   # (reserved — empty in Phase 1)
 |   |   |-- fixtures/
 |   |       |-- patient.json
 |   |       |-- condition-family-history.json
 |   |       |-- service-request-colonoscopy.json
 |   |       |-- prior-colonoscopy.json
 |   |       |-- coverage.json
-|   |-- tests/
+|   |-- tests/                        # (planned)
 |   |-- .env                          # Local-only configuration, not committed
 |   |-- .env.example                  # Committed environment template
 |   |-- requirements.txt
-|   |-- Dockerfile
+|   |-- Dockerfile                    # (planned)
 |-- .gitignore
 |-- README.md
 ```
@@ -413,7 +413,7 @@ GET  /debug/last-crd-request    Inspect last outgoing CDS Hooks request
 GET  /debug/last-crd-response   Inspect last payer CDS Cards response
 ```
 
-### PHP Payer CRD Service
+### Bun + Hono Payer CRD Service
 
 ```text
 GET  /cds-services                     CDS Hooks discovery endpoint
@@ -589,8 +589,8 @@ Key differences between the local (macOS) and OCI Linux environments:
 OCI VCN security lists and instance-level firewall rules must permit:
 
 - Inbound to Python EHR VM on port 8000 (or 80/443) from the internet, for clinician browser access.
-- Inbound to PHP payer VM on port 8080 from the Python EHR VM's private subnet IP, for CDS Hooks calls.
-- Internet-facing access to PHP payer VM is not required; payer-to-provider traffic stays on private subnet.
+- Inbound to Bun payer VM on port 8080 from the Python EHR VM's private subnet IP, for CDS Hooks calls.
+- Internet-facing access to Bun payer VM is not required; payer-to-provider traffic stays on private subnet.
 
 The payer endpoint URL in the Python EHR application must be configurable via `.env` so that it can point to `http://localhost:8080` locally and to the payer VM's private IP or hostname on OCI.
 
@@ -598,18 +598,27 @@ The payer endpoint URL in the Python EHR application must be configurable via `.
 
 ### Phase 1: Minimal End-to-End CRD Demo
 
-- Create Python EHR shell with patient chart and colonoscopy order screen.
-- Create Bun + Hono payer shell with CDS Hooks discovery and `order-sign` endpoint.
-- Build static FHIR fixtures for the high-risk colonoscopy scenario.
-- Send a CDS Hooks request from Python to the Bun payer.
-- Return static or lightly rule-driven CDS Cards from the Bun payer.
-- Render returned cards in the Python EHR UI.
+**Provider EHR (Python) — complete.** All routes, templates, FHIR fixtures, Pydantic models, FHIR factory, CDS client, and debug screens are implemented.
+
+**Payer CRD Service (Bun + Hono) — not yet started.** Work begins after Provider EHR is complete.
+
+Provider EHR deliverables:
+- Patient chart UI with demographics, conditions, draft order, prior procedure, and CRD trigger button
+- All five FHIR fixture files for the high-risk colonoscopy scenario
+- CDS Hooks `order-sign` request assembly (`fhir_factory.py`)
+- Outbound HTTP client with last-request/last-response state (`cds_client.py`)
+- CDS Cards partial rendered inline via HTMX (`cds_cards.html`)
+- Debug screens for request and response inspection (`/debug/last-crd-request`, `/debug/last-crd-response`)
+
+Payer CRD deliverables (pending):
+- Bun + Hono application shell with `GET /cds-services` discovery endpoint
+- `POST /cds-services/crd-order-sign` endpoint
+- Static or lightly rule-driven CDS Cards response for the high-risk colonoscopy scenario
 
 ### Phase 2: Rule Depth and Scenario Variants
 
-- Add payer rule evaluation for average-risk vs high-risk patients.
+- Add payer rule evaluation for average-risk vs high-risk patient branches.
 - Add missing-documentation and prior-authorization-required card responses.
-- Add request/response debug screens.
 - Add focused unit tests for Python request construction and Bun payer rule evaluation.
 
 ### Phase 3: Standards Alignment

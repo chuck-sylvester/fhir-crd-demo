@@ -11,11 +11,15 @@ class Settings (BaseSettings):
 
     # Application
     app_name: str = "Provider EHR (Python)"
+    app_description: str = "app description"
     app_version: str = "0.0.0.0"
     app_env: str = "development"
 
     # Logging
     log_level: str = "INFO"
+
+    # Debug Settings
+    app_debug: bool = True
 
     # Payer CRD Info
     payer_crd_url: str

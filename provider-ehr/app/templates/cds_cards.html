@@ -1,0 +1,308 @@
+{# -------------------------------------------------------------------------
+   cds_cards.html — CDS Cards partial (HTMX swap fragment)
+   -------------------------------------------------------------------------
+   This template is a PARTIAL: it does NOT extend base.html and contains
+   no <html>, <head>, or <body> tags. It returns only the markup that will
+   be inserted into the existing DOM by HTMX.
+
+   HOW THIS PARTIAL IS USED
+   -------------------------
+   The "Check Coverage Requirements" button on patient_chart.html carries:
+       hx-post="/orders/colonoscopy/crd"
+       hx-target="#cds-cards-panel"
+       hx-swap="innerHTML"
+
+   When clicked, HTMX POSTs to the trigger_crd route in clinician.py,
+   which assembles the CDS Hooks request, calls the payer, and returns
+   this rendered partial. HTMX then replaces the innerHTML of
+   #cds-cards-panel with the response — no page reload occurs.
+
+   CONTEXT VARIABLES PROVIDED BY routes/clinician.py -> trigger_crd()
+   -------------------------------------------------------------------
+   cards  (list[CdsCard])  — list of CdsCard Pydantic model instances.
+                             Empty list when the payer returned no cards
+                             or when a payer error occurred.
+   error  (str | None)     — human-readable error message when the payer
+                             call failed; None on success.
+
+   ACCESSING PYDANTIC MODEL FIELDS IN JINJA2
+   ------------------------------------------
+   Pydantic model instances expose their fields as object attributes.
+   Jinja2's dot notation works for both dict key access and attribute
+   access, so {{ card.summary }} works whether `card` is a dict or a
+   Pydantic model. The relevant fields from models.py are:
+
+     card.summary    (str)          — short headline required by CDS Hooks
+     card.indicator  (str)          — "info", "warning", or "critical"
+     card.source     (CdsSource)
+       card.source.label  (str)     — payer name or rule set label
+       card.source.url    (str|None)— optional link to coverage policy
+     card.detail     (str|None)     — extended guidance; may be Markdown
+     card.links      (list[CdsLink])
+       link.label  (str)
+       link.url    (str)
+       link.type   (str)            — "absolute" or "smart"
+
+   TAILWIND CSS AND HTMX
+   ----------------------
+   Tailwind CDN is loaded in base.html. When this partial is injected
+   into the DOM by HTMX, the CDN Play script's MutationObserver detects
+   the new nodes and applies styles to any Tailwind classes it finds.
+   Dynamically inserted content is therefore styled correctly.
+
+   One important constraint: class names must appear as complete,
+   unbroken strings in the source. A class built by concatenation such as
+   "border-" + "blue-400" would not be recognized. The dict below uses
+   full literal class names to satisfy this requirement.
+   -------------------------------------------------------------------------
+#}
+
+
+{# ==========================================================================
+   INDICATOR STYLE MAP
+   ==========================================================================
+   Maps each CDS Hooks indicator value to the Tailwind classes needed to
+   color the card's left border and indicator badge.
+
+   JINJA2 {% set %} WITH A DICT
+   -----------------------------
+   {% set variable = { ... } %} creates a local variable in the template.
+   Jinja2 dicts use the same Python literal syntax — string keys in quotes,
+   colon separating key and value, comma between entries.
+
+   Values are accessed with dot notation (s.border) or bracket notation
+   (s["border"]) — both styles work in Jinja2.
+
+   Defining the mapping once here and referencing it in the loop below
+   keeps related styles together and avoids repeating an if/elif chain
+   inside every card's markup.
+   ========================================================================== #}
+{% set styles = {
+    "info": {
+        "border":     "border-blue-400",
+        "badge_bg":   "bg-blue-100",
+        "badge_text": "text-blue-800",
+        "label":      "Info"
+    },
+    "warning": {
+        "border":     "border-amber-400",
+        "badge_bg":   "bg-amber-100",
+        "badge_text": "text-amber-800",
+        "label":      "Warning"
+    },
+    "critical": {
+        "border":     "border-red-400",
+        "badge_bg":   "bg-red-100",
+        "badge_text": "text-red-800",
+        "label":      "Critical"
+    }
+} %}
+
+
+{# ==========================================================================
+   ERROR STATE
+   ==========================================================================
+   Displayed when the payer call failed — either the service was unreachable
+   (httpx.RequestError) or it returned a non-2xx HTTP status
+   (httpx.HTTPStatusError). The `error` variable is a plain string set by
+   the route handler; `cards` will be an empty list in this branch.
+
+   WHY THE ROUTE RETURNS HTTP 200 ON PAYER ERRORS
+   ------------------------------------------------
+   HTMX only performs an innerHTML swap when the server responds with a
+   2xx status. If the route returned HTTP 503 or 502, HTMX would treat
+   the response as an error, leave #cds-cards-panel empty, and the
+   clinician would see no feedback. Returning 200 with an error message
+   in the HTML lets HTMX insert the message so the clinician knows what
+   went wrong.
+   ========================================================================== #}
+{% if error %}
+<div class="border border-red-200 bg-red-50 rounded-lg p-5">
+    <p class="font-semibold text-red-700 mb-1">CRD Request Failed</p>
+    <p class="text-sm text-red-600">{{ error }}</p>
+</div>
+
+
+{# ==========================================================================
+   EMPTY CARDS STATE
+   ==========================================================================
+   Displayed when the payer responded successfully but returned zero cards.
+   An empty cards list is a valid payer outcome: it signals that the order
+   meets all coverage requirements without additional guidance.
+
+   `not cards` evaluates to True when cards is an empty list []. This is
+   standard Python truthiness: empty sequences are falsy.
+   ========================================================================== #}
+{% elif not cards %}
+<div class="border border-gray-200 bg-gray-50 rounded-lg p-5">
+    <p class="font-semibold text-gray-700 mb-1">No Guidance Returned</p>
+    <p class="text-sm text-gray-500">
+        The payer returned no CDS guidance for this order. No prior
+        authorization or additional documentation appears to be required.
+    </p>
+</div>
+
+
+{# ==========================================================================
+   CARDS LIST
+   ==========================================================================
+   Iterates over the cards list and renders each CDS Card as a bordered
+   panel. The CDS Hooks specification allows a response to contain one or
+   more cards; each card represents a distinct piece of clinical guidance
+   from the payer's rule engine.
+
+   JINJA2 FOR LOOP
+   ----------------
+   {% for item in iterable %} ... {% endfor %} iterates over any Python
+   sequence. Inside the loop body, `card` is the current CdsCard instance.
+
+   Jinja2 provides built-in loop variables accessible as `loop.<name>`:
+     loop.index    — 1-based position of the current iteration
+     loop.index0   — 0-based position
+     loop.first    — True on the first iteration
+     loop.last     — True on the final iteration
+     loop.length   — total number of items
+
+   `loop.last` is used below to suppress the bottom margin on the final
+   card so the panel doesn't have extra whitespace at the end.
+   ========================================================================== #}
+{% else %}
+{% for card in cards %}
+
+{# Look up Tailwind classes for this card's indicator value.
+   The `default` filter returns its argument when the expression before
+   the pipe is undefined or resolves to None. This guards against an
+   unrecognized indicator value from the payer so the card still renders
+   rather than crashing with a KeyError.  #}
+{% set s = styles[card.indicator] | default(styles["info"]) %}
+
+<div class="border-l-4 {{ s.border }} bg-white rounded-lg shadow p-5
+            {% if not loop.last %}mb-4{% endif %}">
+
+    {# ------------------------------------------------------------------
+       CARD HEADER — indicator badge and summary
+       ------------------------------------------------------------------
+       The summary is the required short headline of the card. It must
+       be 140 characters or fewer per the CDS Hooks specification.
+
+       The indicator badge uses the color looked up from the styles dict.
+       The human-readable label ("Info", "Warning", "Critical") comes
+       from s.label rather than card.indicator so the displayed text is
+       capitalized without needing a | capitalize filter.
+
+       `shrink-0` prevents the badge from compressing when the summary
+       text is long. `leading-snug` tightens the line height of the
+       summary so multi-line text doesn't spread too far.
+    ------------------------------------------------------------------ #}
+    <div class="flex items-start gap-3 mb-3">
+
+        <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full
+                     {{ s.badge_bg }} {{ s.badge_text }}">
+            {{ s.label }}
+        </span>
+
+        <p class="font-semibold text-gray-800 leading-snug">
+            {{ card.summary }}
+        </p>
+
+    </div>
+
+    {# ------------------------------------------------------------------
+       CARD DETAIL (optional)
+       ------------------------------------------------------------------
+       The detail field contains extended guidance text. The CDS Hooks
+       specification permits it to be formatted as Markdown, but Phase 1
+       does not include a Markdown parsing library. Rendering inside a
+       <pre> block preserves line breaks and indentation without any
+       parsing dependency.
+
+       `whitespace-pre-wrap` (the Tailwind equivalent of CSS
+       `white-space: pre-wrap`) wraps long lines at the container edge
+       rather than extending a horizontal scrollbar.
+
+       `font-sans` overrides the browser's default monospace font for
+       <pre> elements so the detail text reads like body copy rather
+       than code.
+
+       The `{% if card.detail %}` check skips this section entirely when
+       detail is None. Omitting it avoids rendering an empty <pre> block
+       when the payer does not include extended guidance.
+    ------------------------------------------------------------------ #}
+    {% if card.detail %}
+    <pre class="text-sm text-gray-600 whitespace-pre-wrap font-sans mb-3
+                bg-gray-50 rounded p-3 leading-relaxed">{{ card.detail }}</pre>
+    {% endif %}
+
+    {# ------------------------------------------------------------------
+       ACTION LINKS (optional)
+       ------------------------------------------------------------------
+       The links field is a list of CdsLink objects. Each represents an
+       action the clinician can take from the EHR — for example, opening
+       a DTR documentation form at the payer's portal.
+
+       In Phase 1 the payer fixture returns only "absolute" link types.
+       The "smart" type refers to a SMART on FHIR app launch URL, which
+       is a Phase 4 concept. Both types are rendered as standard <a> tags
+       here since no SMART app launch infrastructure exists yet.
+
+       target="_blank" opens the link in a new browser tab so the
+       clinician does not navigate away from the patient chart.
+
+       rel="noopener noreferrer" is a security best practice for any
+       target="_blank" link:
+         noopener   — prevents the opened tab from accessing this window
+                      via window.opener (cross-origin scripting risk)
+         noreferrer — suppresses the Referer request header so the
+                      destination site does not learn the chart URL
+
+       `{% if card.links %}` skips the section when links is an empty
+       list, which is the model default.
+    ------------------------------------------------------------------ #}
+    {% if card.links %}
+    <div class="flex flex-wrap gap-2 mb-3">
+        {% for link in card.links %}
+        <a href="{{ link.url }}"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="inline-flex items-center gap-1 text-sm font-medium
+                  text-blue-700 hover:text-blue-900 underline
+                  underline-offset-2 transition-colors">
+            {{ link.label }}
+            {# Unicode north-east arrow — a lightweight visual cue that
+               this link opens outside the EHR. Using a Unicode glyph
+               avoids a dependency on an SVG icon library. #}
+            <span class="text-xs">&#x2197;</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ------------------------------------------------------------------
+       SOURCE ATTRIBUTION
+       ------------------------------------------------------------------
+       The source field identifies the payer system or rule set that
+       produced this card. Displaying it gives the clinician context for
+       where the guidance originated and a path to the underlying policy.
+
+       When source.url is present the label becomes a link. The
+       if/else/endif pattern renders different markup for the same text
+       depending on whether a URL exists, without requiring two separate
+       full blocks for the surrounding paragraph structure.
+    ------------------------------------------------------------------ #}
+    <p class="text-xs text-gray-400">
+        Source:
+        {% if card.source.url %}
+        <a href="{{ card.source.url }}"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="underline hover:text-gray-600 transition-colors">
+            {{ card.source.label }}
+        </a>
+        {% else %}
+        {{ card.source.label }}
+        {% endif %}
+    </p>
+
+</div>
+{% endfor %}
+{% endif %}

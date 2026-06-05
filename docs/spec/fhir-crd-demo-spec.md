@@ -3,7 +3,7 @@
 **fhir-crd-demo** is a reference application that demonstrates a Coverage Requirements Discovery (CRD) workflow between two independently developed applications:
 
 1. A provider EHR simulator built with a modern Python web stack.
-2. An external payer simulator built with a vanilla PHP 8.5 LAMP stack.
+2. An external payer simulator built with a Bun + Hono (TypeScript) stack.
 
 The project is intended to model the system-to-system collaboration described by the HL7 Da Vinci Coverage Requirements Discovery implementation guide. It is also intended to support learning around CMS burden reduction policy, CDS Hooks, FHIR resource modeling, and pragmatic healthcare interoperability architecture.
 
@@ -49,7 +49,7 @@ The HL7 Da Vinci Project created the Coverage Requirements Discovery (CRD) imple
 This project simulates that collaboration locally:
 
 - The Python provider EHR application acts as the CRD client.
-- The PHP/LAMP payer application acts as the CRD server.
+- The Bun + Hono payer application acts as the CRD server.
 - The EHR sends a CDS Hooks request when a clinician drafts or signs an order.
 - The payer evaluates the clinical context and returns CDS Cards for display in the EHR workflow.
 
@@ -90,8 +90,8 @@ The system consists of two primary applications. Each application has a distinct
 +------------------------------------------------------------+
 | Payer Environment                                          |
 |                                                            |
-|  PHP/LAMP External Payer CRD Service                       |
-|  Apache + PHP 8.5 + optional MariaDB                       |
+|  Bun + Hono External Payer CRD Service                     |
+|  Bun runtime + Hono framework + TypeScript                 |
 |  http://localhost:8080                                     |
 |                                                            |
 |  - CDS Hooks discovery metadata                            |
@@ -131,20 +131,21 @@ Responsibilities:
 - Render payer guidance inside the simulated EHR workflow.
 - Record demo events locally for debugging and learning, if persistence is enabled.
 
-#### External Payer CRD Service: PHP/LAMP
+#### External Payer CRD Service: Bun + Hono
 
 Directory: `payer-crd/`
 
 Default port: `8080`
 
+> **Tech Stack Decision (2026-06-05):** This service was originally designed using a PHP 8.5 / Apache / PHP-FPM (LAMP) stack. After evaluating market trends, modern developer experience, and long-term learning value, the implementation was revised to use Bun + Hono + TypeScript. Bun's speed, integrated tooling (runtime, package manager, test runner, bundler), and native TypeScript support, combined with Hono's lightweight and runtime-portable framework design, provide stronger market alignment and a more modern development experience. The original PHP/LAMP design is preserved in `docs/spec/payer-crd-spec.md` as a historical reference.
+
 Technology stack:
 
-- PHP 8.5.
-- Apache HTTP Server.
-- MariaDB only if payer rules, plans, or audit records need persistence.
-- Plain PHP front controller and routing.
-- No Laravel, Symfony, Slim, or other PHP application framework.
-- Composer only if useful for autoloading, development tooling, or standards-based helper packages.
+- Bun (runtime, package manager, bundler, test runner).
+- Hono (lightweight TypeScript-first web framework; no server-side rendering needed).
+- TypeScript (strict mode; aligns well with FHIR's complex schema-heavy data structures).
+- No persistence layer required for Phase 1 (stateless rule evaluation).
+- No heavy full-stack frameworks (no NestJS, AdonisJS, etc.).
 
 Responsibilities:
 
@@ -161,8 +162,8 @@ Responsibilities:
 The provider EHR and payer service should be treated as separate applications that communicate over HTTP. The Python application should not call PHP as an internal helper, and the PHP application should not render the EHR UI.
 
 ```text
-Python Provider EHR                  PHP/LAMP Payer CRD Service
--------------------                  --------------------------
+Python Provider EHR                  Bun + Hono Payer CRD Service
+-------------------                  ----------------------------
 Owns clinician UI                    Owns payer coverage logic
 Builds FHIR context                  Receives CDS Hooks request
 Posts CDS Hooks request       --->   Evaluates payer rules
@@ -186,18 +187,18 @@ Displays payer guidance              Does not render EHR screens
 
 4. Python EHR builds a CDS Hooks request.
 
-5. Python EHR posts the request to the PHP payer CRD endpoint.
+5. Python EHR posts the request to the Bun payer CRD endpoint.
 
-6. PHP payer validates the request shape and extracts relevant facts:
+6. Bun payer validates the request shape and extracts relevant facts:
    - Patient age
    - Diagnosis/risk indicator
    - Procedure code
    - Prior procedure timing
    - Coverage or plan information, if modeled
 
-7. PHP payer evaluates local rule logic.
+7. Bun payer evaluates local rule logic.
 
-8. PHP payer returns CDS Cards.
+8. Bun payer returns CDS Cards.
 
 9. Python EHR renders the cards in the clinician workflow.
 
@@ -226,6 +227,8 @@ Displays payer guidance              Does not render EHR screens
       |<-------------------|                       |
       |                    |                       |
 ```
+
+> **Note:** "PHP Payer CRD" in earlier versions of this diagram referred to the original PHP/LAMP design. The payer is now implemented with Bun + Hono.
 
 ## Data Specification and Payload Mapping
 
@@ -282,7 +285,7 @@ In scope for the initial demonstration:
 - Local provider-to-payer CRD workflow.
 - Synthetic patient and order data.
 - CDS Hooks request and response exchange.
-- Rule-based PHP payer response logic.
+- Rule-based Bun payer response logic.
 - EHR rendering of returned CDS Cards.
 - Text or JSON fixtures for scenario data.
 
@@ -306,12 +309,12 @@ Root-level files should be limited to broad project concerns such as:
 
 - `README.md`: Overall demonstration overview, quick-start summary, and links into each application.
 - `.gitignore`: Shared ignore rules for Python, PHP, local environment files, dependency folders, logs, and generated artifacts.
-- `docs/`: Project-level documentation, including specifications and reference material
+- `docs/`: Project-level documentation organized into three subdirectories: `spec/` (architecture and design specifications), `guides/` (per-component learning guides and implementation references, organized under `provider-ehr/` and `payer-crd/` subfolders), and `reference/` (external reference material)
 
 Each application should be self-contained:
 
 - `provider-ehr/`: Python EHR simulator application, including its own tests, dependencies, and environment configuration.
-- `payer-crd/`: PHP/LAMP payer CRD service application, including its own tests, dependencies, and environment configuration.
+- `payer-crd/`: Bun + Hono payer CRD service application, including its own tests, dependencies, and environment configuration.
 
 Recommended configuration pattern:
 
@@ -326,37 +329,44 @@ The following structure is a proposed initial layout. It may be refined during i
 ```text
 fhir-crd-demo/
 |-- docs/                             # Project-wide documents
+|   |-- guides/                       # Learning guides and implementation references
+|   |   |-- provider-ehr/             # Provider EHR guides
+|   |   |   |-- cds-client.md         # Outbound CDS Hooks HTTP client
+|   |   |   |-- fhir-factory.md       # FHIR fixture loading and request assembly
+|   |   |   |-- pydantic-models.md    # CDS Hooks request/response Pydantic models
+|   |   |-- payer-crd/                # Payer CRD guides (to be added)
 |   |-- reference/                    # Useful reference material
 |   |-- spec/                         # High-level and detailed technical specifications
 |       |-- fhir-crd-demo-spec.md
 |       |-- cds-hooks-api-contract.md
 |       |-- provider-ehr-spec.md
 |       |-- payer-crd-spec.md
-|-- payer-crd/                        # PHP/LAMP external payer simulator
-|   |-- public/
-|   |   |-- index.php                 # Front controller
-|   |   |-- .htaccess                 # Apache rewrite rules
+|-- payer-crd/                        # Bun + Hono external payer simulator
 |   |-- src/
-|   |   |-- Http/
-|   |   |   |-- Request.php
-|   |   |   |-- Response.php
-|   |   |-- CdsHooks/
-|   |   |   |-- DiscoveryController.php
-|   |   |   |-- CrdServiceController.php
-|   |   |   |-- CardFactory.php
-|   |   |-- Rules/
-|   |       |-- ColonoscopyRuleEngine.php
-|   |-- config/
-|   |   |-- payer-rules.php
+|   |   |-- index.ts                  # Application entrypoint; Hono app + Bun.serve()
+|   |   |-- routes/
+|   |   |   |-- discovery.ts          # GET /cds-services
+|   |   |   |-- crd.ts                # POST /cds-services/crd-order-sign
+|   |   |-- rules/
+|   |   |   |-- colonoscopyRuleEngine.ts
+|   |   |-- cards/
+|   |   |   |-- cardFactory.ts
+|   |   |-- types/
+|   |       |-- cdsHooks.ts           # TypeScript types for CDS Hooks request/response
 |   |-- fixtures/
 |   |   |-- cds-discovery.json
 |   |   |-- cards-covered-high-risk.json
 |   |   |-- cards-missing-documentation.json
 |   |-- tests/
+|   |   |-- rules/
+|   |   |   |-- colonoscopyRuleEngine.test.ts
+|   |   |-- routes/
+|   |       |-- discovery.test.ts
+|   |       |-- crd.test.ts
 |   |-- .env                          # Local-only configuration, not committed
 |   |-- .env.example                  # Committed environment template
-|   |-- composer.json                 # Autoloading and dev tooling
-|   |-- apache.conf                   # Virtual host template for OCI deployment
+|   |-- package.json                  # Bun package manifest
+|   |-- tsconfig.json                 # TypeScript configuration
 |-- provider-ehr/                     # Python provider EHR simulator
 |   |-- app/
 |   |   |-- __init__.py
@@ -418,7 +428,7 @@ GET  /debug/rules                      Optional local-only rule inspection endpo
 The two applications should be runnable and testable independently.
 
 ```text
-Terminal 1: start PHP/LAMP payer service
+Terminal 1: start Bun payer service
 Terminal 2: start Python provider EHR service
    Browser: open Python EHR at http://localhost:8000
 ```
@@ -426,14 +436,10 @@ Terminal 2: start Python provider EHR service
 ### Prerequisites
 
 - Python 3.12.
-- PHP 8.5, installed via Homebrew (`brew install php`).
-- Apache HTTP Server, installed via Homebrew (`brew install httpd`).
-- MariaDB if persistence is added to the payer application.
+- Bun (latest stable), installed via `curl -fsSL https://bun.sh/install | bash` or Homebrew (`brew install bun`).
 - `curl`, Postman, Insomnia, or a similar API testing tool.
 
 ### Quick Start: Development Mode
-
-The payer application runs under Homebrew Apache and PHP-FPM. Complete the one-time Apache configuration described in the next section before running these steps for the first time.
 
 1. Clone the repository:
 
@@ -442,14 +448,15 @@ The payer application runs under Homebrew Apache and PHP-FPM. Complete the one-t
    cd fhir-crd-demo
    ```
 
-2. Start the PHP payer CRD service:
+2. Start the Bun payer CRD service:
 
    ```bash
-   brew services start php      # PHP-FPM on port 9000
-   brew services start httpd    # Homebrew Apache on port 8080
+   cd payer-crd
+   bun install
+   bun run dev     # starts on port 8080
    ```
 
-3. Start the Python EHR application:
+3. Start the Python EHR application (in a separate terminal):
 
    ```bash
    cd provider-ehr
@@ -471,9 +478,11 @@ The payer application runs under Homebrew Apache and PHP-FPM. Complete the one-t
    curl -X POST http://localhost:8000/orders/colonoscopy/crd
    ```
 
-### Local Apache Configuration (macOS)
+### Local Apache Configuration (macOS) — Historical Reference: PHP/LAMP Design
 
-One-time setup step. Homebrew PHP no longer ships `mod_php`; the current integration approach is PHP-FPM with `mod_proxy_fcgi`, where Apache forwards PHP requests to a separate PHP-FPM process pool.
+> **Note:** This section describes the Apache + PHP-FPM setup used in the original PHP/LAMP design of the payer-crd service. It is retained as a historical reference. The selected Bun + Hono implementation does not require Apache or PHP-FPM — it runs as a standalone Bun process (`bun run dev`).
+
+One-time setup step (PHP/LAMP approach). Homebrew PHP no longer ships `mod_php`; the integration approach was PHP-FPM with `mod_proxy_fcgi`, where Apache forwards PHP requests to a separate PHP-FPM process pool.
 
 #### Enable required Apache modules
 
@@ -536,54 +545,44 @@ The project is intended to support deployment to Oracle Cloud Infrastructure (OC
 #### Application placement
 
 - Python provider EHR: dedicated OCI VM, accessible on port 8000 or behind a reverse proxy.
-- PHP payer CRD service: dedicated OCI VM, accessible on port 8080 or behind a reverse proxy.
+- Bun payer CRD service: dedicated OCI VM, accessible on port 8080 or behind a reverse proxy.
 - Both VMs should reside in the same VCN (Virtual Cloud Network) to allow direct inter-application communication over private subnet IPs.
 
-#### PHP/Apache on OCI Linux
+#### Bun on OCI Linux
 
-On OCI Linux (Oracle Linux or Ubuntu), install Apache and PHP via the OS package manager rather than Homebrew:
+Bun is installed via its install script on both Oracle Linux and Ubuntu:
 
 ```bash
-# Oracle Linux 8/9
-sudo dnf install httpd php php-fpm
-
-# Ubuntu
-sudo apt install apache2 php php-fpm
+curl -fsSL https://bun.sh/install | bash
 ```
 
-The application code is fully portable. On OCI, **do not edit the main `httpd.conf` directly** for application routing. Instead, drop a dedicated virtual host configuration file into the appropriate conf directory:
+The Bun payer service runs as a standalone process — no web server or process manager configuration required beyond starting the process. For production-like OCI deployments, use a systemd unit to manage the Bun process:
 
-- Oracle Linux: `/etc/httpd/conf.d/fhir-crd.conf`
-- Ubuntu: `/etc/apache2/sites-available/fhir-crd.conf` (then enable with `a2ensite`)
+```ini
+[Unit]
+Description=fhir-crd-demo Bun Payer CRD Service
+After=network.target
 
-The committed `payer-crd/apache.conf` file serves as the template for this conf file. Copy it to the appropriate location and update the paths:
+[Service]
+WorkingDirectory=/var/www/fhir-crd-demo/payer-crd
+ExecStart=/root/.bun/bin/bun run src/index.ts
+Restart=on-failure
+Environment=PORT=8080
 
-```apache
-<VirtualHost *:8080>
-    DocumentRoot "/var/www/fhir-crd-demo/payer-crd/public"
-    ServerName <payer-vm-hostname-or-ip>
-
-    <Directory "/var/www/fhir-crd-demo/payer-crd/public">
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    <FilesMatch \.php$>
-        SetHandler "proxy:fcgi://127.0.0.1:9000"
-    </FilesMatch>
-</VirtualHost>
+[Install]
+WantedBy=multi-user.target
 ```
 
-Key differences between the Homebrew (macOS) and Linux (OCI) environments:
+Key differences between the local (macOS) and OCI Linux environments:
 
-| | macOS (Homebrew) | OCI Linux |
+| | macOS (local) | OCI Linux |
 |---|---|---|
-| Apache config approach | `DocumentRoot` set directly in `httpd.conf` | Dedicated conf file in `conf.d/` or `sites-available/` |
-| Apache config root | `/opt/homebrew/etc/httpd/` | `/etc/httpd/conf.d/` or `/etc/apache2/sites-available/` |
-| Document root convention | local repository path | `/var/www/fhir-crd-demo/payer-crd/public` |
-| PHP-FPM socket | TCP `127.0.0.1:9000` | TCP or Unix socket; check `/etc/php-fpm.d/www.conf` |
-| Service management | `brew services` | `systemctl enable --now httpd php-fpm` |
+| Bun installation | `brew install bun` or install script | Install script (`curl \| bash`) |
+| Service management | Terminal process or `brew services` (not applicable for Bun) | `systemctl` with a custom unit file |
+| Payer endpoint URL | `http://localhost:8080` | OCI VM private IP or hostname |
+| Bun binary path | varies by install method | typically `/root/.bun/bin/bun` |
+
+> **Historical Note (PHP/LAMP):** The original PHP/LAMP OCI deployment approach used Apache virtual host configuration files and PHP-FPM managed via `systemctl`. That configuration detail is preserved in the `Local Apache Configuration` section above for reference.
 
 #### Networking and firewall
 
@@ -600,10 +599,10 @@ The payer endpoint URL in the Python EHR application must be configurable via `.
 ### Phase 1: Minimal End-to-End CRD Demo
 
 - Create Python EHR shell with patient chart and colonoscopy order screen.
-- Create PHP payer shell with CDS Hooks discovery and `order-sign` endpoint.
+- Create Bun + Hono payer shell with CDS Hooks discovery and `order-sign` endpoint.
 - Build static FHIR fixtures for the high-risk colonoscopy scenario.
-- Send a CDS Hooks request from Python to PHP.
-- Return static or lightly rule-driven CDS Cards from PHP.
+- Send a CDS Hooks request from Python to the Bun payer.
+- Return static or lightly rule-driven CDS Cards from the Bun payer.
 - Render returned cards in the Python EHR UI.
 
 ### Phase 2: Rule Depth and Scenario Variants
@@ -611,7 +610,7 @@ The payer endpoint URL in the Python EHR application must be configurable via `.
 - Add payer rule evaluation for average-risk vs high-risk patients.
 - Add missing-documentation and prior-authorization-required card responses.
 - Add request/response debug screens.
-- Add focused unit tests for Python request construction and PHP rule evaluation.
+- Add focused unit tests for Python request construction and Bun payer rule evaluation.
 
 ### Phase 3: Standards Alignment
 
@@ -645,8 +644,8 @@ Recommended tests:
 
 - Python unit tests for FHIR fixture loading and CDS Hooks request construction.
 - Python integration test that mocks the payer endpoint.
-- PHP unit tests for colonoscopy rule evaluation.
-- PHP endpoint tests for CDS Hooks discovery and CRD service responses.
+- Bun unit tests for colonoscopy rule evaluation (`bun test`).
+- Bun endpoint tests for CDS Hooks discovery and CRD service responses.
 - Contract-style JSON fixture tests for request and response examples.
 - Manual browser workflow test from patient chart to returned CDS Cards.
 
@@ -665,4 +664,5 @@ Recommended non-functional checks:
 - [Da Vinci CRD Supported Hooks](https://www.hl7.org/fhir/us/davinci-crd/hooks.html)
 - [Da Vinci CRD ServiceRequest Profile](https://www.hl7.org/fhir/us/davinci-crd/StructureDefinition-profile-servicerequest.html)
 - [CDS Hooks Specification](https://cds-hooks.org)
-- [PHP 8.5 Release Information](https://www.php.net/releases/8.5/)
+- [Bun Runtime Documentation](https://bun.sh/docs)
+- [Hono Framework Documentation](https://hono.dev/docs)

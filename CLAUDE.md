@@ -7,19 +7,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working in this
 A polyglot learning sandbox demonstrating a Coverage Requirements Discovery (CRD) workflow between two independently developed applications:
 
 - **Provider EHR Simulator** (`provider-ehr/`) — Python/FastAPI, acts as the CDS Hooks client
-- **Payer CRD Service** (`payer-crd/`) — Vanilla PHP/LAMP, acts as the CDS Hooks server
+- **Payer CRD Service** (`payer-crd/`) — Bun + Hono (TypeScript), acts as the CDS Hooks server
 
 The core scenario: a clinician drafts a colonoscopy order for a high-risk patient, the EHR sends a CDS Hooks `order-sign` request to the payer, and the payer returns CDS Cards describing coverage guidance, documentation requirements, and prior authorization expectations.
 
 ## Running the Services
 
-Both services run independently. Start the PHP payer first.
+Both services run independently. Start the Bun payer first.
 
-**PHP Payer CRD Service** — runs under Homebrew Apache + PHP-FPM. Requires one-time virtual host setup; see the spec `Local Apache Configuration` section for details.
+**Bun Payer CRD Service** (port 8080):
 
 ```bash
-brew services start php      # PHP-FPM (port 9000)
-brew services start httpd    # Homebrew Apache (port 8080)
+cd payer-crd
+bun install          # first time only
+bun run dev
 ```
 
 **Python Provider EHR** (port 8000):
@@ -37,11 +38,11 @@ curl -X POST http://localhost:8000/orders/colonoscopy/crd
 
 ## Architecture
 
-The two applications communicate only over HTTP — PHP never calls Python internals, Python never renders payer logic.
+The two applications communicate only over HTTP — the Bun payer never calls Python internals, Python never renders payer logic.
 
 ```
-Python EHR (port 8000)         PHP Payer (port 8080)
-──────────────────────         ─────────────────────
+Python EHR (port 8000)         Bun/Hono Payer (port 8080)
+──────────────────────         ──────────────────────────
 Clinician UI (HTMX/Jinja2)
 FHIR context assembly
 CDS Hooks request builder ──POST /cds-services/crd-order-sign──>
@@ -58,13 +59,14 @@ Debug screens (/debug/*)       Rule evaluation engine
 - `app/models.py` — Pydantic models for CDS Hooks request/response
 - `app/fixtures/` — JSON FHIR resources: `patient.json`, `condition-family-history.json`, `service-request-colonoscopy.json`, `prior-colonoscopy.json`, `coverage.json`
 
-**PHP key files:**
-- `public/index.php` — front controller, all requests route here
-- `src/CdsHooks/DiscoveryController.php` — serves GET /cds-services
-- `src/CdsHooks/CrdServiceController.php` — handles POST /cds-services/crd-order-sign
-- `src/CdsHooks/CardFactory.php` — builds CDS Cards responses
-- `src/Rules/ColonoscopyRuleEngine.php` — payer rule evaluation
-- `config/payer-rules.php` — configurable rule parameters
+**Bun/Hono key files:**
+- `src/index.ts` — application entrypoint; Hono app definition and `Bun.serve()`
+- `src/routes/discovery.ts` — GET /cds-services handler
+- `src/routes/crd.ts` — POST /cds-services/crd-order-sign handler
+- `src/rules/colonoscopyRuleEngine.ts` — payer rule evaluation
+- `src/cards/cardFactory.ts` — builds CDS Cards responses
+- `src/types/cdsHooks.ts` — TypeScript types for CDS Hooks request/response
+- `fixtures/` — JSON: `cds-discovery.json`, `cards-covered-high-risk.json`, `cards-missing-documentation.json`
 
 ## Testing
 
@@ -75,12 +77,25 @@ cd provider-ehr && python -m pytest
 # Python — run a single test file
 python -m pytest tests/test_fhir_factory.py -v
 
-# PHP — run all tests (PHPUnit)
-cd payer-crd && ./vendor/bin/phpunit
+# Bun payer — run all tests
+cd payer-crd && bun test
 
-# PHP — run a single test file
-./vendor/bin/phpunit tests/Rules/ColonoscopyRuleEngineTest.php
+# Bun payer — run a single test file
+bun test tests/rules/colonoscopyRuleEngine.test.ts
 ```
+
+## Documentation
+
+Guides are in `docs/guides/`, organized by application. Specs are in `docs/spec/`.
+
+**Provider EHR guides** (`docs/guides/provider-ehr/`):
+- `pydantic-models.md` — CDS Hooks request/response Pydantic models (`app/models.py`)
+- `fhir-factory.md` — FHIR fixture loading and CDS Hooks request assembly (`app/fhir_factory.py`)
+- `cds-client.md` — Outbound CDS Hooks HTTP client (`app/cds_client.py`)
+
+**Payer CRD guides** (`docs/guides/payer-crd/`): none yet; to be added when Bun + Hono implementation begins.
+
+**Specs** (`docs/spec/`): `fhir-crd-demo-spec.md`, `cds-hooks-api-contract.md`, `provider-ehr-spec.md`, `payer-crd-spec.md`
 
 ## Key Domain Concepts
 
@@ -101,7 +116,7 @@ Each card may include a `links` array with an `absolute` link to a DTR-style doc
 
 ## Constraints
 
-- **PHP: no framework.** No Laravel, Symfony, Slim, etc. Composer is allowed for autoloading or dev tooling only.
+- **Bun/Hono stack:** Bun runtime, Hono framework, TypeScript. No heavy full-stack frameworks (no NestJS, AdonisJS, etc.). Native Bun APIs preferred over heavy third-party libraries.
 - **Python stack:** FastAPI + HTMX + Jinja2 + HTTPX + Pydantic + Tailwind CSS. PostgreSQL only if persistence becomes necessary.
 - **Strict app separation:** provider and payer are independently runnable with separate configs, tests, and `.env` files. Real `.env` files are never committed; each app has a `.env.example`.
 - **Synthetic data only.** All patient data is fixture-based; no real patient data, no production HIPAA controls.
@@ -138,9 +153,9 @@ Build sequence steps 1–7 are complete. Steps 8–18 are not started.
 - `tests/test_fhir_factory.py`, `test_cds_client.py`, `test_routes.py` (no `tests/` directory yet)
 - `Dockerfile`
 
-### Payer CRD (PHP)
+### Payer CRD (Bun + Hono)
 
-Build sequence step 4 verified (Apache/PHP-FPM running and serving `public/index.php`). All implementation steps are not started. `public/index.php` is a static HTML placeholder that must be replaced with the front controller implementation. `.env` exists; all other files and directories remain to be created.
+Implementation not started. Work begins after the Provider EHR is complete. The tech stack was revised from the original PHP/LAMP design to Bun + Hono + TypeScript on 2026-06-05 for improved market alignment and learning value. The original PHP design is preserved in `docs/spec/payer-crd-spec.md` as a historical reference. The `payer-crd/` directory currently contains only the legacy PHP placeholder files.
 
 ---
 

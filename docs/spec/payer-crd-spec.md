@@ -1,6 +1,21 @@
-# PHP Payer CRD Service — Design Specification
+# Payer CRD Service — Design Specification
 
-## Phase 1: Minimal End-to-End CRD Demo
+## Tech Stack Decision History
+
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| Project start | **PHP 8.5 / Apache / PHP-FPM (LAMP)** selected as the payer-crd implementation stack | Familiar LAMP-style architecture; simple stateless HTTP service with no external dependencies; plain PHP front controller as a learning exercise |
+| 2026-06-05 | **Revised to Bun + Hono + TypeScript** | Stronger market alignment with current and future backend hiring trends; Bun's integrated tooling (runtime, package manager, bundler, test runner) provides a more modern developer experience than Node.js; native TypeScript support aligns well with FHIR's complex schema-heavy structures; Hono's lightweight, runtime-portable design fits a stateless JSON API exactly; PHP/LAMP, while technically capable, signals a legacy skillset for new microservice work in 2026 |
+
+**Selected implementation: Bun + Hono + TypeScript.** Implementation begins after the Provider EHR simulator (Python/FastAPI) is complete.
+
+The original PHP/LAMP design is preserved below in [Part I](#part-i-original-phpLAMP-design-historical-reference) as a historical reference. The Bun + Hono design is outlined in [Part II](#part-ii-selected-implementation-bun--hono).
+
+---
+
+## Part I: Original PHP/LAMP Design (Historical Reference)
+
+> This section documents the original PHP 8.5 / Apache / PHP-FPM design. It was fully specified but **never implemented**. It is retained as a learning reference and to show the design thinking that preceded the Bun + Hono decision.
 
 ---
 
@@ -470,3 +485,139 @@ Follow this order when implementing Phase 1. Each step has a verifiable outcome 
 | 17 | Write and run `CrdServiceControllerTest` | PHPUnit tests pass | Not started |
 | 18 | Run full PHPUnit suite | `./vendor/bin/phpunit` passes all tests | Not started |
 | 19 | Perform end-to-end test with the Python EHR | `POST /orders/colonoscopy/crd` from the EHR produces CDS Cards in the browser | Not started |
+
+---
+
+## Part II: Selected Implementation — Bun + Hono
+
+> This section describes the selected implementation approach. Detailed specification will be completed before implementation begins (after the Provider EHR is complete).
+
+---
+
+## A. Overview
+
+The Bun + Hono payer CRD service provides the same functional responsibilities as the PHP design described in Part I — CDS Hooks discovery, CRD rule evaluation, and CDS Cards response — implemented as a modern TypeScript application running on the Bun runtime.
+
+**Payload contract reference:** `docs/spec/cds-hooks-api-contract.md` (unchanged from PHP design; the contract is implementation-language-agnostic)
+
+---
+
+## B. Technology Stack
+
+| Component | Choice | Notes |
+|-----------|--------|-------|
+| Language | TypeScript (strict mode) | Native to Bun; aligns well with FHIR schema complexity |
+| Runtime | Bun | Built-in TypeScript execution, package manager, bundler, test runner |
+| Framework | Hono | Lightweight, TypeScript-first, runtime-portable; no overhead |
+| URL routing | Hono router | Built-in; no `.htaccess` or front controller pattern needed |
+| Testing | `bun test` | Bun's built-in Jest-compatible test runner; no PHPUnit equivalent needed |
+| Persistence | None (Phase 1) | Stateless rule evaluation, same as PHP design |
+
+---
+
+## C. Project Structure
+
+```text
+payer-crd/
+├── src/
+│   ├── index.ts                        # App entrypoint: Hono app definition + Bun.serve()
+│   ├── routes/
+│   │   ├── discovery.ts                # GET /cds-services
+│   │   └── crd.ts                      # POST /cds-services/crd-order-sign
+│   ├── rules/
+│   │   └── colonoscopyRuleEngine.ts    # Payer rule evaluation logic
+│   ├── cards/
+│   │   └── cardFactory.ts             # Constructs CDS Card arrays from rule outcomes
+│   └── types/
+│       └── cdsHooks.ts                # TypeScript interfaces for CDS Hooks request/response
+├── fixtures/
+│   ├── cds-discovery.json             # Discovery metadata (same structure as PHP design)
+│   ├── cards-covered-high-risk.json   # Template for high-risk covered scenario
+│   └── cards-missing-documentation.json
+├── tests/
+│   ├── rules/
+│   │   └── colonoscopyRuleEngine.test.ts
+│   └── routes/
+│       ├── discovery.test.ts
+│       └── crd.test.ts
+├── .env                               # Local-only configuration, not committed
+├── .env.example                       # Committed environment template
+├── package.json                       # Bun package manifest (name, scripts, dependencies)
+└── tsconfig.json                      # TypeScript compiler configuration
+```
+
+---
+
+## D. Environment Configuration
+
+### D.1 `.env.example`
+
+Same configuration keys as the PHP design (Section 5.1):
+
+| Key | Description |
+|-----|-------------|
+| `APP_ENV` | Runtime environment: `development` or `production` |
+| `LOG_LEVEL` | Verbosity: `DEBUG`, `INFO`, `WARNING` |
+| `PAYER_NAME` | Display name of the payer used in card source labels |
+| `PAYER_BASE_URL` | Base URL of this service, e.g. `http://localhost:8080` |
+| `PORT` | Listening port, default `8080` |
+
+Bun natively loads `.env` files at startup via `Bun.env` — no manual loader required.
+
+---
+
+## E. Development Workflow
+
+```bash
+# Install dependencies (first time)
+cd payer-crd
+bun install
+
+# Start in development mode (with file watching)
+bun run dev
+
+# Run all tests
+bun test
+
+# Run a specific test file
+bun test tests/rules/colonoscopyRuleEngine.test.ts
+```
+
+The `package.json` `scripts` section should define:
+- `dev`: `bun run --watch src/index.ts`
+- `start`: `bun run src/index.ts`
+- `test`: `bun test`
+
+---
+
+## F. Functional Parity with PHP Design
+
+The Bun + Hono implementation must satisfy the same Phase 1 acceptance criteria as the PHP design (Section 2):
+
+- `GET /cds-services` returns HTTP 200 with a valid discovery response
+- `POST /cds-services/crd-order-sign` with a valid payload returns HTTP 200 with at least one CDS Card
+- High-risk path (Z80.0 present) returns an `info` card
+- Missing-documentation path (Z80.0 absent) returns a `warning` card
+- Unknown routes return HTTP 404
+- All `bun test` tests pass
+
+The rule logic, fixture structure, and endpoint contracts described in Sections 11–14 of Part I apply directly to the TypeScript implementation — only the language and class/module syntax differ.
+
+---
+
+## G. Build Sequence (To Be Detailed)
+
+A detailed build sequence mirroring the PHP design's Section 17 will be written before implementation begins. High-level milestones:
+
+| Step | Task |
+|------|------|
+| 1 | Initialize `package.json` and `tsconfig.json`; confirm `bun install` succeeds |
+| 2 | Create `.env` and `.env.example` |
+| 3 | Scaffold `src/index.ts` with a minimal Hono app; confirm `bun run dev` starts |
+| 4 | Define TypeScript types in `src/types/cdsHooks.ts` |
+| 5 | Implement discovery route and fixture loading; confirm `GET /cds-services` returns correct JSON |
+| 6 | Implement rule engine in `src/rules/colonoscopyRuleEngine.ts` with unit tests |
+| 7 | Implement card factory in `src/cards/cardFactory.ts` |
+| 8 | Implement CRD route in `src/routes/crd.ts` with integration tests |
+| 9 | Run full `bun test` suite |
+| 10 | Perform end-to-end test with the Python EHR |

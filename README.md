@@ -26,11 +26,13 @@ A Python/FastAPI application acting as the CDS Hooks client. It provides a simul
 
 ### Payer CRD Service (`payer-crd/`)
 
-A PHP/LAMP application acting as the CDS Hooks server. It exposes CDS Hooks discovery and service endpoints, evaluates payer-specific coverage rules, and returns CDS Cards.
+A Bun + Hono (TypeScript) application acting as the CDS Hooks server. It exposes CDS Hooks discovery and service endpoints, evaluates payer-specific coverage rules, and returns CDS Cards.
 
-**Stack:** PHP 8.5, Apache HTTP Server, PHP-FPM
+**Stack:** Bun, Hono, TypeScript
 
 **Default port:** 8080
+
+> **Tech Stack Note:** This service was originally designed as a PHP 8.5 / Apache / PHP-FPM (LAMP) application. After evaluating market trends and learning value, the implementation was revised to use Bun + Hono + TypeScript. The original PHP/LAMP design is preserved in `docs/spec/payer-crd-spec.md` as a historical reference.
 
 ---
 
@@ -44,13 +46,14 @@ A PHP/LAMP application acting as the CDS Hooks server. It exposes CDS Hooks disc
 
 ## Quick Start
 
-Start the PHP payer service first, then the Python EHR.
+Start the Bun payer service first, then the Python EHR.
 
-**PHP Payer CRD Service:**
+**Bun Payer CRD Service:**
 
 ```bash
-brew services start php      # PHP-FPM on port 9000
-brew services start httpd    # Homebrew Apache on port 8080
+cd payer-crd
+bun install          # first time only
+bun run dev          # starts on port 8080
 ```
 
 **Python Provider EHR:**
@@ -72,11 +75,16 @@ Open the EHR simulator at `http://localhost:8000` and navigate to the patient ch
 ```text
 fhir-crd-demo/
 |-- docs/
-|   |-- guides/                  # Learning guides and implementation references
-|   |-- reference/               # External reference material
-|   |-- spec/                    # Project and application specifications
-|-- payer-crd/                   # PHP/LAMP payer CRD service
-|-- provider-ehr/                # Python provider EHR simulator
+|   |-- guides/                          # Learning guides and implementation references
+|   |   |-- provider-ehr/               # Provider EHR guides
+|   |   |   |-- cds-client.md
+|   |   |   |-- fhir-factory.md
+|   |   |   |-- pydantic-models.md
+|   |   |-- payer-crd/                  # Payer CRD guides (to be added)
+|   |-- reference/                       # External reference material
+|   |-- spec/                            # Project and application specifications
+|-- payer-crd/                           # Bun + Hono payer CRD service
+|-- provider-ehr/                        # Python provider EHR simulator
 |-- .gitignore
 |-- README.md
 ```
@@ -85,12 +93,26 @@ fhir-crd-demo/
 
 ## Documentation
 
+### Specifications
+
 | Document | Description |
 |----------|-------------|
 | `docs/spec/fhir-crd-demo-spec.md` | Project-level architecture and design specification |
 | `docs/spec/cds-hooks-api-contract.md` | CDS Hooks request and response payload contract |
 | `docs/spec/provider-ehr-spec.md` | Provider EHR application design specification |
-| `docs/spec/payer-crd-spec.md` | Payer CRD service design specification |
+| `docs/spec/payer-crd-spec.md` | Payer CRD service design specification (includes PHP/LAMP historical design and Bun + Hono selected design) |
+
+### Provider EHR Guides
+
+| Document | Description |
+|----------|-------------|
+| `docs/guides/provider-ehr/pydantic-models.md` | Pydantic models for CDS Hooks request and response (`app/models.py`) |
+| `docs/guides/provider-ehr/fhir-factory.md` | FHIR fixture loading and CDS Hooks request assembly (`app/fhir_factory.py`) |
+| `docs/guides/provider-ehr/cds-client.md` | Outbound CDS Hooks HTTP client (`app/cds_client.py`) |
+
+### Payer CRD Guides
+
+Guides for the Bun + Hono payer implementation will be added when implementation begins.
 
 ---
 

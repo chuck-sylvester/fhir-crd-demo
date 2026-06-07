@@ -32,8 +32,6 @@ A Bun + Hono (TypeScript) application acting as the CDS Hooks server. It exposes
 
 **Default port:** 8080
 
-> **Tech Stack Note:** This service was originally designed as a PHP 8.5 / Apache / PHP-FPM (LAMP) application. After evaluating market trends and learning value, the implementation was revised to use Bun + Hono + TypeScript. The original PHP/LAMP design is preserved in `docs/spec/payer-crd-spec.md` as a historical reference.
-
 ---
 
 ## Standards
@@ -100,7 +98,7 @@ fhir-crd-demo/
 | `docs/spec/fhir-crd-demo-spec.md` | Project-level architecture and design specification |
 | `docs/spec/cds-hooks-api-contract.md` | CDS Hooks request and response payload contract |
 | `docs/spec/provider-ehr-spec.md` | Provider EHR application design specification |
-| `docs/spec/payer-crd-spec.md` | Payer CRD service design specification (includes PHP/LAMP historical design and Bun + Hono selected design) |
+| `docs/spec/payer-crd-spec.md` | Payer CRD service design specification |
 
 ### Provider EHR Guides
 

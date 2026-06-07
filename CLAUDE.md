@@ -133,29 +133,26 @@ Each card may include a `links` array with an `absolute` link to a DTR-style doc
 
 ### Provider EHR (Python)
 
-Build sequence steps 1–7 are complete. Steps 8–18 are not started.
+Phase 1 implementation complete (tests and Dockerfile remain).
 
 **Complete:**
 - Directory structure, `requirements.txt`, `.env` / `.env.example`
-- `config.py` — Pydantic-Settings configuration with module-level `settings` singleton
+- `config.py`, `models.py`, `colors.py`
 - All five FHIR fixture files in `app/fixtures/`
-- `models.py` — CDS Hooks request and response Pydantic models
 - `fhir_factory.py` — fixture loader and CDS Hooks request assembler
-
-**Stub (file exists, implementation empty):**
-- `app/main.py`
-- `app/cds_client.py`
+- `cds_client.py` — outbound HTTPX client with last-request/last-response state
+- `main.py` — FastAPI application factory with static mount and router registration
+- `routes/clinician.py` — `GET /`, `GET /patients/{patient_id}`, `POST /orders/colonoscopy/crd`
+- `routes/api.py` — `GET /debug/last-crd-request`, `GET /debug/last-crd-response`
+- `templates/base.html`, `dashboard.html`, `patient_chart.html`, `cds_cards.html`
 
 **Not started:**
-- `app/routes/clinician.py`, `app/routes/api.py` (directory exists)
-- `app/templates/base.html`, `patient_chart.html`, `cds_cards.html` (directory exists)
-- `app/static/` (directory exists, no content)
-- `tests/test_fhir_factory.py`, `test_cds_client.py`, `test_routes.py` (no `tests/` directory yet)
+- `tests/` directory (test_fhir_factory.py, test_cds_client.py, test_routes.py)
 - `Dockerfile`
 
 ### Payer CRD (Bun + Hono)
 
-Implementation not started. Work begins after the Provider EHR is complete. The tech stack was revised from the original PHP/LAMP design to Bun + Hono + TypeScript on 2026-06-05 for improved market alignment and learning value. The original PHP design is preserved in `docs/spec/payer-crd-spec.md` as a historical reference. The `payer-crd/` directory currently contains only the legacy PHP placeholder files.
+Implementation in progress. The `payer-crd/` directory currently contains only a legacy placeholder file (`public/index.php`) — the Bun + Hono source structure has not been scaffolded yet. See `docs/spec/payer-crd-spec.md` Section 14 for the full build sequence.
 
 ---
 

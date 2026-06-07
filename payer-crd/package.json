@@ -1,0 +1,16 @@
+{
+  "name": "payer-crd",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index/ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "hono": "^4.12.23"
+  }
+}

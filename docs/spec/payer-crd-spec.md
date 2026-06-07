@@ -1,29 +1,10 @@
 # Payer CRD Service — Design Specification
 
-## Tech Stack Decision History
-
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| Project start | **PHP 8.5 / Apache / PHP-FPM (LAMP)** selected as the payer-crd implementation stack | Familiar LAMP-style architecture; simple stateless HTTP service with no external dependencies; plain PHP front controller as a learning exercise |
-| 2026-06-05 | **Revised to Bun + Hono + TypeScript** | Stronger market alignment with current and future backend hiring trends; Bun's integrated tooling (runtime, package manager, bundler, test runner) provides a more modern developer experience than Node.js; native TypeScript support aligns well with FHIR's complex schema-heavy structures; Hono's lightweight, runtime-portable design fits a stateless JSON API exactly; PHP/LAMP, while technically capable, signals a legacy skillset for new microservice work in 2026 |
-
-**Selected implementation: Bun + Hono + TypeScript.** The Provider EHR simulator (Python/FastAPI) is complete. Payer CRD Service implementation is now in progress.
-
-The original PHP/LAMP design is preserved below in [Part I](#part-i-original-phpLAMP-design-historical-reference) as a historical reference. The Bun + Hono design is outlined in [Part II](#part-ii-selected-implementation-bun--hono).
-
----
-
-## Part I: Original PHP/LAMP Design (Historical Reference)
-
-> This section documents the original PHP 8.5 / Apache / PHP-FPM design. It was fully specified but **never implemented**. It is retained as a learning reference and to show the design thinking that preceded the Bun + Hono decision.
-
 ---
 
 ## 1. Overview
 
-The PHP Payer CRD Service simulates an external payer's Coverage Requirements Discovery endpoint. It implements the server side of the CDS Hooks protocol: it advertises its services via a discovery endpoint, receives CDS Hooks `order-sign` requests from the Python EHR Simulator, evaluates payer-specific coverage rules against the submitted clinical context, and returns CDS Cards describing coverage guidance, documentation requirements, and prior authorization expectations.
-
-The application is implemented in plain PHP 8.5 with no application framework. A custom front controller in `public/index.php` handles all routing. Composer is used only for PSR-4 autoloading.
+The Bun + Hono Payer CRD Service simulates an external payer's Coverage Requirements Discovery endpoint. It implements the server side of the CDS Hooks protocol: it advertises its services via a discovery endpoint, receives CDS Hooks `order-sign` requests from the Python EHR Simulator, evaluates payer-specific coverage rules against the submitted clinical context, and returns CDS Cards describing coverage guidance, documentation requirements, and prior authorization expectations.
 
 **Payload contract reference:** `docs/spec/cds-hooks-api-contract.md`
 
@@ -38,16 +19,17 @@ The application is implemented in plain PHP 8.5 with no application framework. A
 | 3 | Colonoscopy rule engine evaluating high-risk vs. missing-documentation scenarios |
 | 4 | Card factory producing well-formed CDS Cards from rule outcomes |
 | 5 | Fixture JSON files for discovery metadata and card templates |
-| 6 | PHPUnit tests for the rule engine and both endpoint controllers |
+| 6 | `bun test` tests for the rule engine and both route handlers |
 
 **Phase 1 acceptance criteria:**
 
 - `GET /cds-services` returns HTTP 200 with a valid CDS Hooks discovery response listing the `crd-order-sign` service
 - `POST /cds-services/crd-order-sign` with a valid payload returns HTTP 200 with at least one CDS Card
-- The high-risk path (Z80.0 present) returns an `info` card confirming coverage
-- The missing-documentation path (Z80.0 absent) returns a `warning` card
+- High-risk path (Z80.0 present, prior procedure ≥ 5 years ago) returns an `info` card
+- Missing-documentation path (Z80.0 absent) returns a `warning` card
 - Unknown routes return HTTP 404
-- All PHPUnit tests pass
+- All `bun test` tests pass
+- End-to-end: clicking "Check Coverage Requirements" in the Python EHR renders CDS Cards in the browser
 
 ---
 
@@ -55,465 +37,16 @@ The application is implemented in plain PHP 8.5 with no application framework. A
 
 | Component | Choice | Notes |
 |-----------|--------|-------|
-| Language | PHP 8.5 | Installed via Homebrew on macOS; via OS package manager on OCI Linux |
-| HTTP server | Apache HTTP Server (Homebrew) | Handles all requests; configured in `httpd.conf` |
-| PHP execution | PHP-FPM on TCP port 9000 | Apache proxies `.php` requests to FPM via `mod_proxy_fcgi` |
-| URL routing | `public/.htaccess` + `public/index.php` | All requests rewrite to the front controller |
-| Autoloading | Composer PSR-4 | `src/` namespace mapped to `App\` |
-| Testing | PHPUnit | Installed as a Composer `require-dev` dependency |
-| Framework | None | No Laravel, Symfony, Slim, or other PHP framework |
-
----
-
-## 4. Project Structure
-
-```text
-payer-crd/
-├── public/
-│   ├── index.php                # Front controller — entry point for all requests
-│   └── .htaccess                # Apache mod_rewrite rules routing to index.php
-├── src/
-│   ├── Http/
-│   │   ├── Request.php          # Parses the incoming HTTP request
-│   │   └── Response.php         # Builds and sends the HTTP response
-│   ├── CdsHooks/
-│   │   ├── DiscoveryController.php      # Handles GET /cds-services
-│   │   ├── CrdServiceController.php     # Handles POST /cds-services/crd-order-sign
-│   │   └── CardFactory.php              # Constructs CDS Card arrays from rule outcomes
-│   └── Rules/
-│       └── ColonoscopyRuleEngine.php    # Evaluates payer rules against FHIR context
-├── config/
-│   └── payer-rules.php          # Configurable rule thresholds and code lists
-├── fixtures/
-│   ├── cds-discovery.json       # Discovery metadata returned by GET /cds-services
-│   ├── cards-covered-high-risk.json     # Template card for the high-risk covered scenario
-│   └── cards-missing-documentation.json # Template card for the missing documentation scenario
-├── tests/
-│   ├── Rules/
-│   │   └── ColonoscopyRuleEngineTest.php
-│   └── CdsHooks/
-│       ├── DiscoveryControllerTest.php
-│       └── CrdServiceControllerTest.php
-├── vendor/                      # Composer-managed; not committed
-├── .env                         # Local configuration (not committed)
-├── .env.example                 # Committed template of required keys
-├── apache.conf                  # Virtual host template for OCI deployment
-└── composer.json
-```
-
----
-
-## 5. Environment Configuration
-
-### 5.1 `.env.example`
-
-Document these keys (no values):
-
-| Key | Description |
-|-----|-------------|
-| `APP_ENV` | Runtime environment: `development` or `production` |
-| `LOG_LEVEL` | Verbosity: `DEBUG`, `INFO`, `WARNING` |
-| `PAYER_NAME` | Display name of the payer used in card source labels |
-| `PAYER_BASE_URL` | Base URL of this service, e.g. `http://localhost:8080` |
-
-### 5.2 Loading `.env` in the Front Controller
-
-PHP has no built-in `.env` loader. In `index.php`, read the `.env` file manually using `parse_ini_file()` or `file()` and populate `$_ENV`. This is sufficient for Phase 1 without adding a Composer dependency.
-
-Keep the loader simple: read the `.env` file line by line, split on `=`, and call `putenv()` for each valid key-value pair. Skip blank lines and lines beginning with `#`.
-
----
-
-## 6. Composer and Autoloading (`composer.json`)
-
-Composer serves two purposes in Phase 1:
-
-1. PSR-4 autoloading of the `src/` directory under the `App\` namespace
-2. Installing PHPUnit as a development dependency
-
-The `composer.json` file must declare:
-
-- `name`: A suitable package name for the project
-- `require`: An empty object (no runtime dependencies)
-- `require-dev`: PHPUnit (version compatible with PHP 8.5, currently PHPUnit 11.x)
-- `autoload.psr-4`: Mapping `"App\\"` to `"src/"`
-- `autoload-dev.psr-4`: Mapping `"App\\Tests\\"` to `"tests/"`
-
-After editing `composer.json`, run `composer install` to generate `vendor/autoload.php` and `composer dump-autoload` after any namespace changes.
-
-The front controller (`index.php`) must `require_once` the Composer autoloader as its first statement.
-
----
-
-## 7. Apache Configuration
-
-### 7.1 `.htaccess` (`public/.htaccess`)
-
-This file enables URL rewriting so that all requests — including those to `/cds-services` and `/cds-services/crd-order-sign` — route through `index.php`.
-
-Required directives:
-
-- Enable the rewrite engine
-- Exclude real files and directories from rewriting (so that any static assets served directly from `public/` are not rewritten)
-- Rewrite everything else to `index.php`, preserving the query string
-
-This file only takes effect if `AllowOverride All` is set for the `public/` directory in the Apache configuration, which is required by the project setup described in the top-level spec.
-
-### 7.2 `apache.conf`
-
-A virtual host template committed to the repository for OCI deployment reference. For local development on macOS, the Apache configuration is managed in `httpd.conf` directly (see the top-level spec's `Local Apache Configuration` section). The `apache.conf` file is not loaded during local development.
-
----
-
-## 8. Front Controller (`public/index.php`)
-
-`index.php` is the single entry point for all HTTP requests. It is responsible for:
-
-1. Loading the Composer autoloader
-2. Loading the `.env` file into the environment
-3. Parsing the incoming request method and path
-4. Dispatching to the appropriate controller
-5. Sending the response
-
-### 8.1 Request Parsing
-
-Extract the request path from `$_SERVER['REQUEST_URI']`. Strip any query string component using `parse_url()`. Normalize the path by trimming trailing slashes and converting to lowercase.
-
-### 8.2 Route Table
-
-Define a route table as a two-level associative array: the first key is the HTTP method (`GET`, `POST`), the second key is the normalized path, and the value is the fully qualified controller class name.
-
-Phase 1 route table:
-
-| Method | Path | Controller |
-|--------|------|------------|
-| `GET` | `/cds-services` | `App\CdsHooks\DiscoveryController` |
-| `POST` | `/cds-services/crd-order-sign` | `App\CdsHooks\CrdServiceController` |
-| `GET` | `/questionnaires/colonoscopy-risk` | *(inline placeholder — returns a static JSON stub)* |
-| `GET` | `/debug/rules` | *(inline placeholder — returns the payer-rules config as JSON)* |
-
-### 8.3 Dispatch Logic
-
-After building the route table, the front controller:
-
-1. Creates a `Request` object from the current server globals
-2. Looks up the route in the table using the request method and path
-3. If a matching controller class is found: instantiates it and calls its `handle(Request $request): Response` method, then calls `$response->send()`
-4. If the method matches but the path does not: sends a 404 JSON response
-5. If the method is not in the route table: sends a 405 JSON response
-
-All responses — including error responses — use `Content-Type: application/json`.
-
----
-
-## 9. HTTP Abstractions
-
-### 9.1 `src/Http/Request.php` — Class `App\Http\Request`
-
-Wraps the PHP superglobals into a clean object with read-only accessor methods.
-
-**Constructor:**
-
-Reads from `$_SERVER`, `$_GET`, and `php://input` at construction time. Parses the raw body as JSON if the `Content-Type` header is `application/json`. Stores the parsed body internally.
-
-**Public methods:**
-
-| Method | Return type | Description |
-|--------|-------------|-------------|
-| `getMethod(): string` | string | Returns the HTTP method in uppercase: `GET`, `POST`, etc. |
-| `getPath(): string` | string | Returns the normalized URL path without query string |
-| `getHeader(string $name): ?string` | string or null | Returns the value of a named request header, or null if absent |
-| `getBody(): array` | array | Returns the parsed JSON body as an associative array; returns an empty array if the body is absent or unparseable |
-| `getBodyRaw(): string` | string | Returns the raw request body string |
-
-### 9.2 `src/Http/Response.php` — Class `App\Http\Response`
-
-Represents an HTTP response and provides a method to send it to the client.
-
-**Constructor:**
-
-Accepts a status code (integer), a body (array to be JSON-encoded), and an optional array of additional headers.
-
-**Public methods:**
-
-| Method | Return type | Description |
-|--------|-------------|-------------|
-| `send(): void` | void | Sets the HTTP status code with `http_response_code()`, sets response headers with `header()`, encodes the body with `json_encode()`, and echoes it |
-
-The `send()` method always sets `Content-Type: application/json`. It uses `JSON_PRETTY_PRINT` in development mode and compact encoding in production mode, determined by the `APP_ENV` environment variable.
-
----
-
-## 10. Controllers
-
-### 10.1 `src/CdsHooks/DiscoveryController.php` — Class `App\CdsHooks\DiscoveryController`
-
-Handles `GET /cds-services`.
-
-**`handle(Request $request): Response`**
-
-Loads `fixtures/cds-discovery.json` and returns its contents as the body of a 200 response. The fixture contains the complete discovery response body as defined in `docs/spec/cds-hooks-api-contract.md` Section 3.3.
-
-The controller does not inspect the request body or any query parameters.
-
-### 10.2 `src/CdsHooks/CrdServiceController.php` — Class `App\CdsHooks\CrdServiceController`
-
-Handles `POST /cds-services/crd-order-sign`.
-
-**`handle(Request $request): Response`**
-
-Performs the end-to-end CRD request processing:
-
-1. Calls a private `validateRequest()` method to check that the required top-level fields are present (`hook`, `hookInstance`, `context`)
-2. If validation fails, returns a 400 response with a descriptive error message
-3. Extracts the FHIR resources from the request body
-4. Instantiates `ColonoscopyRuleEngine` and calls `evaluate()` with the extracted resources
-5. Instantiates `CardFactory` and calls the appropriate card-building method based on the rule outcome
-6. Returns a 200 response with the cards array wrapped in the `{"cards": [...]}` envelope
-
-**Private helper methods:**
-
-| Method | Description |
-|--------|-------------|
-| `validateRequest(array $body): bool` | Returns true if required fields are present and `hook` equals `order-sign` |
-| `extractPatient(array $body): array` | Returns the Patient resource from `prefetch.patient` |
-| `extractConditions(array $body): array` | Returns the array of Condition resources from `prefetch.conditions.entry[].resource` |
-| `extractProcedures(array $body): array` | Returns the array of Procedure resources from `prefetch.priorProcedures.entry[].resource` |
-| `extractCoverage(array $body): array` | Returns the Coverage resource from `prefetch.coverage` |
-
-Each extraction method returns an empty array (or empty object) rather than throwing if the key is absent, so the rule engine can handle missing prefetch data gracefully.
-
----
-
-## 11. Rule Engine (`src/Rules/ColonoscopyRuleEngine.php`)
-
-Class `App\Rules\ColonoscopyRuleEngine`.
-
-The rule engine evaluates the clinical facts extracted from the CDS Hooks request and returns a structured outcome that drives card selection.
-
-### 11.1 Constructor
-
-Accepts the rule configuration array loaded from `config/payer-rules.php`. Store it internally.
-
-### 11.2 Public Method
-
-**`evaluate(array $patient, array $conditions, array $procedures, array $coverage): array`**
-
-Runs all rule checks and returns an associative array (the "rule outcome") containing the following keys:
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `highRiskIndicator` | bool | True if the Z80.0 condition code is present in the conditions array |
-| `patientAge` | int or null | Patient age in years calculated from `birthDate`; null if birthDate is absent |
-| `yearsSincePriorProcedure` | float or null | Elapsed years since the most recent qualifying prior procedure; null if no prior procedure found |
-| `meetsIntervalRequirement` | bool | True if `yearsSincePriorProcedure` is null (no prior) or meets the applicable interval threshold |
-| `outcome` | string | One of: `covered-high-risk`, `missing-documentation`, `interval-not-met` |
-
-### 11.3 Private Helper Methods
-
-| Method | Description |
-|--------|-------------|
-| `calculateAge(string $birthDate): int` | Calculates full years between the birth date and the current date using PHP `DateTime` |
-| `hasHighRiskCondition(array $conditions): bool` | Searches the conditions array for a coding with system `http://hl7.org/fhir/sid/icd-10-cm` and code `Z80.0` |
-| `findMostRecentProcedure(array $procedures, string $cptCode): ?array` | Filters the procedures array for a matching CPT code and returns the one with the most recent `performedDateTime`; returns null if none found |
-| `calculateYearsSince(string $dateString): float` | Calculates the elapsed years between the given date and the current date using PHP `DateTime` |
-
-### 11.4 Rule Logic
-
-The `evaluate()` method applies rules in this order:
-
-1. Call `hasHighRiskCondition()` to set `highRiskIndicator`
-2. Call `calculateAge()` using `patient.birthDate` (if present) to set `patientAge`
-3. Call `findMostRecentProcedure()` using the CPT code from `payer-rules.php` to find the prior procedure
-4. If a prior procedure is found, call `calculateYearsSince()` using its `performedDateTime` to set `yearsSincePriorProcedure`
-5. Determine `meetsIntervalRequirement`:
-   - If no prior procedure: `true` (first procedure, no interval constraint)
-   - If `highRiskIndicator` is true: check that `yearsSincePriorProcedure >= highRiskIntervalYears` from config
-   - If `highRiskIndicator` is false: check that `yearsSincePriorProcedure >= averageRiskIntervalYears` from config
-6. Determine `outcome`:
-   - `highRiskIndicator` is true and `meetsIntervalRequirement` is true → `covered-high-risk`
-   - `highRiskIndicator` is false → `missing-documentation`
-   - `highRiskIndicator` is true and `meetsIntervalRequirement` is false → `interval-not-met`
-
----
-
-## 12. Payer Rules Configuration (`config/payer-rules.php`)
-
-A PHP file that returns an associative array of configurable rule parameters. The rule engine loads this array at construction time.
-
-| Key | Type | Phase 1 Value | Description |
-|-----|------|---------------|-------------|
-| `highRiskIntervalYears` | int | `5` | Minimum years between colonoscopies for high-risk patients |
-| `averageRiskIntervalYears` | int | `10` | Minimum years between colonoscopies for average-risk patients |
-| `colonoscopyCptCode` | string | `45378` | CPT code identifying a colonoscopy procedure |
-| `highRiskIcd10Codes` | array of string | `['Z80.0']` | ICD-10-CM codes that qualify a patient as high-risk |
-
----
-
-## 13. Card Factory (`src/CdsHooks/CardFactory.php`)
-
-Class `App\CdsHooks\CardFactory`.
-
-The card factory constructs CDS Card arrays based on the rule outcome. It loads card templates from the fixture files and populates dynamic fields.
-
-**Constructor:** No arguments.
-
-**Public methods:**
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `buildCardsForOutcome(array $ruleOutcome): array` | array of card arrays | Dispatches to the appropriate card builder based on `$ruleOutcome['outcome']` |
-| `buildCoveredHighRiskCards(): array` | array of card arrays | Loads `fixtures/cards-covered-high-risk.json` and returns its `cards` array |
-| `buildMissingDocumentationCards(): array` | array of card arrays | Loads `fixtures/cards-missing-documentation.json` and returns its `cards` array |
-| `buildIntervalNotMetCards(array $ruleOutcome): array` | array of card arrays | Builds a warning card indicating the screening interval has not been met; uses `yearsSincePriorProcedure` from the rule outcome |
-
-The response envelope (`{"cards": [...]}`) is assembled by `CrdServiceController`, not by `CardFactory`. The factory returns only the inner array of card objects.
-
----
-
-## 14. Fixtures
-
-Fixture files are static JSON stored in `fixtures/`. They are loaded at runtime by the controllers and card factory.
-
-### 14.1 `fixtures/cds-discovery.json`
-
-Contains the complete CDS Hooks discovery response body. Must match the discovery response definition in `docs/spec/cds-hooks-api-contract.md` Section 3.
-
-Top-level structure: `{ "services": [ { ... } ] }`
-
-The single service entry must include all fields from API contract Section 3.3, including the prefetch template keys.
-
-### 14.2 `fixtures/cards-covered-high-risk.json`
-
-Contains a pre-built CDS Cards response body for the high-risk covered scenario.
-
-Top-level structure: `{ "cards": [ { ... } ] }`
-
-Card content must match the High-Risk Coverage Info Card definition in `docs/spec/cds-hooks-api-contract.md` Section 6.1.
-
-### 14.3 `fixtures/cards-missing-documentation.json`
-
-Contains a pre-built CDS Cards response body for the missing documentation scenario.
-
-Top-level structure: `{ "cards": [ { ... } ] }`
-
-Card content must match the Missing Documentation Warning Card definition in `docs/spec/cds-hooks-api-contract.md` Section 6.2.
-
----
-
-## 15. Namespace and Autoloading Map
-
-| PHP Namespace | Directory |
-|---------------|-----------|
-| `App\Http` | `src/Http/` |
-| `App\CdsHooks` | `src/CdsHooks/` |
-| `App\Rules` | `src/Rules/` |
-| `App\Tests` | `tests/` |
-
----
-
-## 16. Testing
-
-PHPUnit is installed as a Composer development dependency. The test suite is configured in `phpunit.xml` at the project root.
-
-`phpunit.xml` must declare:
-- `testsuites`: A single suite pointing to the `tests/` directory
-- `bootstrap`: `vendor/autoload.php`
-- `colors`: `true`
-
-### 16.1 `tests/Rules/ColonoscopyRuleEngineTest.php`
-
-Tests are pure unit tests — no HTTP, no file I/O (mock or inline the config array).
-
-| Test | What it verifies |
-|------|-----------------|
-| High-risk condition code Z80.0 is detected | `hasHighRiskCondition()` returns true when Z80.0 is present |
-| Non-matching condition code is not detected | `hasHighRiskCondition()` returns false for other codes |
-| Patient age is calculated correctly | `calculateAge()` returns correct integer for a known birth date |
-| Most recent prior procedure is found | `findMostRecentProcedure()` returns the newest when multiple are present |
-| No qualifying procedure returns null | `findMostRecentProcedure()` returns null when none match the CPT code |
-| `evaluate()` returns `covered-high-risk` for high-risk patient with 5-year interval | Full rule evaluation for the demo scenario |
-| `evaluate()` returns `missing-documentation` when Z80.0 is absent | Missing documentation path |
-| `evaluate()` returns `interval-not-met` for high-risk patient with recent procedure | Interval not met path |
-
-### 16.2 `tests/CdsHooks/DiscoveryControllerTest.php`
-
-| Test | What it verifies |
-|------|-----------------|
-| `handle()` returns a Response with status 200 | HTTP status code |
-| Response body contains `services` key | Discovery response structure |
-| `services[0].hook` is `order-sign` | Correct hook declared |
-| `services[0].id` is `crd-order-sign` | Correct service id |
-| `services[0].prefetch` contains required keys | Prefetch template declared |
-
-### 16.3 `tests/CdsHooks/CrdServiceControllerTest.php`
-
-Use a minimal hand-crafted request body that mirrors the demo scenario fixtures. Do not depend on a running Python EHR.
-
-| Test | What it verifies |
-|------|-----------------|
-| Valid request with Z80.0 returns 200 with `info` card | High-risk covered path end-to-end |
-| Valid request without Z80.0 returns 200 with `warning` card | Missing documentation path end-to-end |
-| Request missing `hook` field returns 400 | Validation rejects malformed request |
-| Request with `hook` != `order-sign` returns 400 | Validation rejects wrong hook |
-| Response body contains `cards` key | Response envelope is correct |
-
----
-
-## 17. Build Sequence
-
-Follow this order when implementing Phase 1. Each step has a verifiable outcome before proceeding.
-
-| Step | Task | Verify | Status |
-|------|------|--------|--------|
-| 1 | Create `payer-crd/` directory structure as shown in Section 4 | All directories exist | Not started |
-| 2 | Create `composer.json` with PSR-4 autoloading and PHPUnit dev dependency | `composer install` succeeds; `vendor/autoload.php` exists | Not started |
-| 3 | Create `.env` and `.env.example` with keys from Section 5.1 | `.env` has `APP_ENV=development` and `PAYER_BASE_URL=http://localhost:8080` | Partial — `.env` exists; `.env.example` not created |
-| 4 | Verify Apache and PHP-FPM are running and serving `public/index.php` | `curl http://localhost:8080` returns the placeholder HTML | Complete |
-| 5 | Implement `src/Http/Request.php` and `src/Http/Response.php` | Classes are autoloaded without error | Not started |
-| 6 | Implement the `.htaccess` rewrite rules | `curl http://localhost:8080/cds-services` routes to `index.php` (confirmed via a temporary echo in index.php) | Not started |
-| 7 | Create `config/payer-rules.php` with values from Section 12 | File returns the expected array when `require`d | Not started |
-| 8 | Create `fixtures/cds-discovery.json` matching the API contract | File is valid JSON; content matches Section 3.3 of the contract | Not started |
-| 9 | Implement `src/CdsHooks/DiscoveryController.php` | `curl http://localhost:8080/cds-services` returns the discovery JSON | Not started |
-| 10 | Implement the front controller routing in `public/index.php` | GET /cds-services dispatches to the controller; unknown routes return 404 | Not started — `public/index.php` is a static HTML placeholder |
-| 11 | Write and run `DiscoveryControllerTest` | PHPUnit tests pass | Not started |
-| 12 | Implement `src/Rules/ColonoscopyRuleEngine.php` | Class instantiates and `evaluate()` returns the correct structure | Not started |
-| 13 | Write and run `ColonoscopyRuleEngineTest` | PHPUnit tests pass | Not started |
-| 14 | Create `fixtures/cards-covered-high-risk.json` and `fixtures/cards-missing-documentation.json` matching the API contract | Files are valid JSON; content matches Sections 6.1 and 6.2 of the contract | Not started |
-| 15 | Implement `src/CdsHooks/CardFactory.php` | `buildCardsForOutcome()` returns the correct card array for each outcome | Not started |
-| 16 | Implement `src/CdsHooks/CrdServiceController.php` | `POST /cds-services/crd-order-sign` with a hand-crafted JSON body returns CDS Cards | Not started |
-| 17 | Write and run `CrdServiceControllerTest` | PHPUnit tests pass | Not started |
-| 18 | Run full PHPUnit suite | `./vendor/bin/phpunit` passes all tests | Not started |
-| 19 | Perform end-to-end test with the Python EHR | `POST /orders/colonoscopy/crd` from the EHR produces CDS Cards in the browser | Not started |
-
----
-
-## Part II: Selected Implementation — Bun + Hono
-
----
-
-## A. Overview
-
-The Bun + Hono payer CRD service provides the same functional responsibilities as the PHP design described in Part I — CDS Hooks discovery, CRD rule evaluation, and CDS Cards response — implemented as a modern TypeScript application running on the Bun runtime.
-
-**Payload contract reference:** `docs/spec/cds-hooks-api-contract.md` — the contract is implementation-language-agnostic and applies directly to the Bun + Hono implementation.
-
----
-
-## B. Technology Stack
-
-| Component | Choice | Notes |
-|-----------|--------|-------|
 | Language | TypeScript (strict mode) | Native to Bun; aligns well with FHIR schema complexity |
 | Runtime | Bun | Built-in TypeScript execution, package manager, bundler, test runner |
 | Framework | Hono | Lightweight, TypeScript-first, runtime-portable; no overhead |
-| URL routing | Hono router | Built-in; no `.htaccess` or front controller pattern needed |
+| URL routing | Hono router | Built-in; no front controller pattern needed |
 | Testing | `bun test` | Bun's built-in Jest-compatible test runner |
 | Persistence | None (Phase 1) | Stateless rule evaluation |
 
 ---
 
-## C. Project Structure
+## 4. Project Structure
 
 ```text
 payer-crd/
@@ -546,9 +79,9 @@ payer-crd/
 
 ---
 
-## D. Environment Configuration
+## 5. Environment Configuration
 
-### D.1 `.env.example`
+### 5.1 `.env.example`
 
 | Key | Description |
 |-----|-------------|
@@ -562,7 +95,7 @@ Bun natively loads `.env` files at startup via `Bun.env` — no manual loader re
 
 ---
 
-## E. Development Workflow
+## 6. Development Workflow
 
 ```bash
 # Install dependencies (first time)
@@ -589,23 +122,11 @@ bun test tests/rules/colonoscopyRuleEngine.test.ts
 
 ---
 
-## F. Phase 1 Acceptance Criteria
-
-- `GET /cds-services` returns HTTP 200 with a valid CDS Hooks discovery response
-- `POST /cds-services/crd-order-sign` with a valid payload returns HTTP 200 with at least one CDS Card
-- High-risk path (Z80.0 present, prior procedure ≥ 5 years ago) returns an `info` card
-- Missing-documentation path (Z80.0 absent) returns a `warning` card
-- Unknown routes return HTTP 404
-- All `bun test` tests pass
-- End-to-end: clicking "Check Coverage Requirements" in the Python EHR renders CDS Cards in the browser
-
----
-
-## H. TypeScript Types (`src/types/cdsHooks.ts`)
+## 7. TypeScript Types (`src/types/cdsHooks.ts`)
 
 Define all interfaces in a single file and export them. Import from this file in all other modules.
 
-### H.1 FHIR Supporting Types
+### 7.1 FHIR Supporting Types
 
 ```typescript
 export interface FhirCoding {
@@ -631,7 +152,7 @@ export interface FhirBundle {
 }
 ```
 
-### H.2 FHIR Resource Types
+### 7.2 FHIR Resource Types
 
 Only fields consumed by the rule engine need to be typed precisely; remaining fields can be `unknown`.
 
@@ -666,7 +187,7 @@ export interface FhirCoverage {
 }
 ```
 
-### H.3 CDS Hooks Request Types
+### 7.3 CDS Hooks Request Types
 
 ```typescript
 export interface CdsHooksContext {
@@ -692,7 +213,7 @@ export interface CdsHooksRequest {
 }
 ```
 
-### H.4 CDS Hooks Response Types
+### 7.4 CDS Hooks Response Types
 
 ```typescript
 export interface CdsSource {
@@ -719,7 +240,7 @@ export interface CdsHooksResponse {
 }
 ```
 
-### H.5 Rule Engine Types
+### 7.5 Rule Engine Types
 
 ```typescript
 export type RuleOutcome =
@@ -738,7 +259,7 @@ export interface RuleResult {
 
 ---
 
-## I. Application Entry Point (`src/index.ts`)
+## 8. Application Entry Point (`src/index.ts`)
 
 Creates the Hono application, registers routes, and calls `Bun.serve()`.
 
@@ -755,9 +276,9 @@ The entry point should contain no business logic; all logic belongs in the route
 
 ---
 
-## J. Route Handlers
+## 9. Route Handlers
 
-### J.1 `src/routes/discovery.ts` — `GET /cds-services`
+### 9.1 `src/routes/discovery.ts` — `GET /cds-services`
 
 Loads `fixtures/cds-discovery.json` and returns its contents as a JSON response with HTTP 200.
 
@@ -768,7 +289,7 @@ Implementation notes:
 - The route does not inspect the request body or query parameters
 - Export a Hono route handler that can be registered in `src/index.ts`
 
-### J.2 `src/routes/crd.ts` — `POST /cds-services/crd-order-sign`
+### 9.2 `src/routes/crd.ts` — `POST /cds-services/crd-order-sign`
 
 Performs the end-to-end CRD request processing.
 
@@ -778,8 +299,8 @@ Performs the end-to-end CRD request processing.
 2. Validate: return HTTP 400 if `hook` is absent, if `hook !== 'order-sign'`, or if `context` is absent
 3. Extract FHIR resources from the prefetch:
    - `patient` from `body.prefetch?.patient`
-   - `conditions` — unwrap entries from `body.prefetch?.conditions?.entry?.map(e => e.resource as FhirCondition) ?? []`
-   - `procedures` — unwrap entries from `body.prefetch?.priorProcedures?.entry?.map(e => e.resource as FhirProcedure) ?? []`
+   - `conditions` — unwrap entries: `body.prefetch?.conditions?.entry?.map(e => e.resource as FhirCondition) ?? []`
+   - `procedures` — unwrap entries: `body.prefetch?.priorProcedures?.entry?.map(e => e.resource as FhirProcedure) ?? []`
    - `coverage` from `body.prefetch?.coverage`
 4. Instantiate `ColonoscopyRuleEngine` with the rule config and call `evaluate()`
 5. Call `buildCardsForOutcome()` with the `RuleResult`
@@ -789,11 +310,9 @@ Each extraction step returns an empty array or `undefined` rather than throwing 
 
 ---
 
-## K. Rule Engine (`src/rules/colonoscopyRuleEngine.ts`)
+## 10. Rule Engine (`src/rules/colonoscopyRuleEngine.ts`)
 
-Implements the same rule logic as the PHP design (Part I Section 11), in TypeScript.
-
-### K.1 Rule Configuration
+### 10.1 Rule Configuration
 
 Define a configuration object (inline constant or imported from a config module):
 
@@ -804,7 +323,7 @@ Define a configuration object (inline constant or imported from a config module)
 | `colonoscopyCptCode` | string | `'45378'` | CPT code identifying a colonoscopy procedure |
 | `highRiskIcd10Codes` | string[] | `['Z80.0']` | ICD-10-CM codes that qualify a patient as high-risk |
 
-### K.2 Exported Function
+### 10.2 Exported Function
 
 Export a single `evaluate` function (no class required, though a class is also acceptable):
 
@@ -817,7 +336,7 @@ export function evaluate(
 ): RuleResult
 ```
 
-### K.3 Helper Functions
+### 10.3 Helper Functions
 
 These may be exported for direct unit testing:
 
@@ -828,7 +347,7 @@ These may be exported for direct unit testing:
 | `findMostRecentProcedure` | `(procedures: FhirProcedure[], cptCode: string) => FhirProcedure \| null` | Filters by CPT code; returns the procedure with the most recent `performedDateTime`; returns `null` if none found |
 | `yearsSince` | `(dateString: string) => number` | Returns the fractional years elapsed since the given ISO 8601 date |
 
-### K.4 Rule Logic
+### 10.4 Rule Logic
 
 The `evaluate` function applies rules in this order:
 
@@ -847,11 +366,9 @@ The `evaluate` function applies rules in this order:
 
 ---
 
-## L. Card Factory (`src/cards/cardFactory.ts`)
+## 11. Card Factory (`src/cards/cardFactory.ts`)
 
-Builds CDS Card arrays from rule outcomes. Loads card content from fixture files.
-
-### L.1 Exported Function
+### 11.1 Exported Function
 
 ```typescript
 export async function buildCardsForOutcome(result: RuleResult): Promise<CdsCard[]>
@@ -873,29 +390,29 @@ The card factory returns only the inner array of card objects. The `{ "cards": [
 
 ---
 
-## M. Fixtures
+## 12. Fixtures
 
 Fixture files live in `payer-crd/fixtures/`. All three files must conform to the structures defined in `docs/spec/cds-hooks-api-contract.md`.
 
-### M.1 `fixtures/cds-discovery.json`
+### 12.1 `fixtures/cds-discovery.json`
 
 Contains the complete CDS Hooks discovery response. Top-level structure: `{ "services": [ { ... } ] }`.
 
 The single service entry must include all fields from API contract Section 3.3. The `prefetch` object must declare all four keys (`patient`, `conditions`, `coverage`, `priorProcedures`) that the Python EHR populates.
 
-### M.2 `fixtures/cards-covered-high-risk.json`
+### 12.2 `fixtures/cards-covered-high-risk.json`
 
 Top-level structure: `{ "cards": [ { ... } ] }`. Card content must match API contract Section 6.1.
 
-### M.3 `fixtures/cards-missing-documentation.json`
+### 12.3 `fixtures/cards-missing-documentation.json`
 
 Top-level structure: `{ "cards": [ { ... } ] }`. Card content must match API contract Section 6.2.
 
 ---
 
-## N. Testing
+## 13. Testing
 
-### N.1 `tests/rules/colonoscopyRuleEngine.test.ts`
+### 13.1 `tests/rules/colonoscopyRuleEngine.test.ts`
 
 Pure unit tests — no HTTP, no file I/O. Pass FHIR resources as inline objects constructed within the test.
 
@@ -910,7 +427,7 @@ Pure unit tests — no HTTP, no file I/O. Pass FHIR resources as inline objects 
 | `evaluate` returns `missing-documentation` when Z80.0 is absent | No high-risk condition code in conditions array |
 | `evaluate` returns `interval-not-met` when interval not satisfied | High-risk patient, prior procedure less than 5 years ago |
 
-### N.2 `tests/routes/discovery.test.ts`
+### 13.2 `tests/routes/discovery.test.ts`
 
 | Test | What it verifies |
 |------|-----------------|
@@ -921,7 +438,7 @@ Pure unit tests — no HTTP, no file I/O. Pass FHIR resources as inline objects 
 | `services[0].id` is `crd-order-sign` | Correct service id |
 | `services[0].prefetch` contains `patient`, `conditions`, `coverage`, `priorProcedures` | Prefetch template declared |
 
-### N.3 `tests/routes/crd.test.ts`
+### 13.3 `tests/routes/crd.test.ts`
 
 Use Hono's built-in test helper (`app.request()`) to call the route without starting a real HTTP server. Construct minimal FHIR payloads inline.
 
@@ -936,25 +453,25 @@ Use Hono's built-in test helper (`app.request()`) to call the route without star
 
 ---
 
-## O. Build Sequence
+## 14. Build Sequence
 
 Follow this order when implementing Phase 1. Each step has a verifiable outcome before proceeding.
 
 | Step | Task | Verify | Status |
 |------|------|--------|--------|
-| 1 | Create directory structure as shown in Section C; initialize `package.json` and `tsconfig.json` | `bun install` succeeds | Not started |
-| 2 | Update `.env` and create `.env.example` with keys from Section D.1 | `.env` has `PORT=8080` and `APP_ENV=development` | Partial — `.env` exists; keys need review |
-| 3 | Define TypeScript interfaces in `src/types/cdsHooks.ts` per Section H | File compiles without error when imported in a minimal `src/index.ts` | Not started |
+| 1 | Create directory structure as shown in Section 4; initialize `package.json` and `tsconfig.json` | `bun install` succeeds | Not started |
+| 2 | Update `.env` and create `.env.example` with keys from Section 5.1 | `.env` has `PORT=8080` and `APP_ENV=development` | Partial — `.env` exists; keys need review |
+| 3 | Define TypeScript interfaces in `src/types/cdsHooks.ts` per Section 7 | File compiles without error when imported in a minimal `src/index.ts` | Not started |
 | 4 | Scaffold `src/index.ts` with a minimal Hono app and `Bun.serve()` | `bun run dev` starts; `curl http://localhost:8080` returns any response | Not started |
 | 5 | Create `fixtures/cds-discovery.json` matching API contract Section 3.3 | File is valid JSON; all required fields are present | Not started |
 | 6 | Implement `src/routes/discovery.ts` and register it in `src/index.ts` | `curl http://localhost:8080/cds-services` returns the discovery JSON | Not started |
 | 7 | Verify unknown routes return HTTP 404 | `curl -i http://localhost:8080/unknown` returns `404` | Not started |
 | 8 | Write and run `tests/routes/discovery.test.ts` | `bun test` passes | Not started |
-| 9 | Implement `src/rules/colonoscopyRuleEngine.ts` per Section K | TypeScript compiles; `evaluate()` can be called from a test file | Not started |
+| 9 | Implement `src/rules/colonoscopyRuleEngine.ts` per Section 10 | TypeScript compiles; `evaluate()` can be called from a test file | Not started |
 | 10 | Write and run `tests/rules/colonoscopyRuleEngine.test.ts` | `bun test` passes all rule engine tests | Not started |
 | 11 | Create `fixtures/cards-covered-high-risk.json` and `fixtures/cards-missing-documentation.json` per API contract Sections 6.1 and 6.2 | Files are valid JSON; card fields are present and correct | Not started |
-| 12 | Implement `src/cards/cardFactory.ts` per Section L | `buildCardsForOutcome()` returns the correct card array for each outcome | Not started |
-| 13 | Implement `src/routes/crd.ts` and register it in `src/index.ts` per Section J.2 | `curl -X POST -H 'Content-Type: application/json' -d '{...}' http://localhost:8080/cds-services/crd-order-sign` returns CDS Cards | Not started |
+| 12 | Implement `src/cards/cardFactory.ts` per Section 11 | `buildCardsForOutcome()` returns the correct card array for each outcome | Not started |
+| 13 | Implement `src/routes/crd.ts` and register it in `src/index.ts` per Section 9.2 | `curl -X POST -H 'Content-Type: application/json' -d '{...}' http://localhost:8080/cds-services/crd-order-sign` returns CDS Cards | Not started |
 | 14 | Write and run `tests/routes/crd.test.ts` | `bun test` passes all CRD route tests | Not started |
 | 15 | Run full `bun test` suite | All tests pass | Not started |
 | 16 | Perform end-to-end test with the Python EHR | Clicking "Check Coverage Requirements" in the browser produces CDS Cards | Not started |

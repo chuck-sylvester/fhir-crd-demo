@@ -137,8 +137,6 @@ Directory: `payer-crd/`
 
 Default port: `8080`
 
-> **Tech Stack Decision (2026-06-05):** This service was originally designed using a PHP 8.5 / Apache / PHP-FPM (LAMP) stack. After evaluating market trends, modern developer experience, and long-term learning value, the implementation was revised to use Bun + Hono + TypeScript. Bun's speed, integrated tooling (runtime, package manager, test runner, bundler), and native TypeScript support, combined with Hono's lightweight and runtime-portable framework design, provide stronger market alignment and a more modern development experience. The original PHP/LAMP design is preserved in `docs/spec/payer-crd-spec.md` as a historical reference.
-
 Technology stack:
 
 - Bun (runtime, package manager, bundler, test runner).
@@ -478,66 +476,6 @@ Terminal 2: start Python provider EHR service
    curl -X POST http://localhost:8000/orders/colonoscopy/crd
    ```
 
-### Local Apache Configuration (macOS) — Historical Reference: PHP/LAMP Design
-
-> **Note:** This section describes the Apache + PHP-FPM setup used in the original PHP/LAMP design of the payer-crd service. It is retained as a historical reference. The selected Bun + Hono implementation does not require Apache or PHP-FPM — it runs as a standalone Bun process (`bun run dev`).
-
-One-time setup step (PHP/LAMP approach). Homebrew PHP no longer ships `mod_php`; the integration approach was PHP-FPM with `mod_proxy_fcgi`, where Apache forwards PHP requests to a separate PHP-FPM process pool.
-
-#### Enable required Apache modules
-
-In `/opt/homebrew/etc/httpd/httpd.conf`, ensure the following `LoadModule` directives are uncommented:
-
-```apache
-LoadModule proxy_module lib/httpd/modules/mod_proxy.so
-LoadModule proxy_fcgi_module lib/httpd/modules/mod_proxy_fcgi.so
-LoadModule rewrite_module lib/httpd/modules/mod_rewrite.so
-```
-
-#### Set DocumentRoot and Directory
-
-Rather than using a separate virtual host configuration file, set the `DocumentRoot` and `<Directory>` blocks directly in `/opt/homebrew/etc/httpd/httpd.conf`. Replace the existing `DocumentRoot` and matching `<Directory>` block with:
-
-```apache
-DocumentRoot "/path/to/fhir-crd-demo/payer-crd/public"
-<Directory "/path/to/fhir-crd-demo/payer-crd/public">
-    Options Indexes FollowSymLinks
-    AllowOverride All
-    Require all granted
-</Directory>
-```
-
-Replace `/path/to/fhir-crd-demo` with the actual repository path on disk (e.g. `/Users/yourname/swdev/cps/fhir-crd-demo`).
-
-`AllowOverride All` is required so that the `.htaccess` file in `payer-crd/public/` can apply the rewrite rules that route all requests through the front controller (`index.php`).
-
-The `httpd-vhosts.conf` include does **not** need to be enabled for this setup. Leave it commented out in `httpd.conf`.
-
-#### PHP handler
-
-The Homebrew Apache default config includes a global `<FilesMatch>` block that routes all `.php` requests through PHP-FPM:
-
-```apache
-<FilesMatch \.php$>
-    SetHandler "proxy:fcgi://127.0.0.1:9000"
-</FilesMatch>
-```
-
-This block handles PHP execution for the payer application automatically; no additional `ProxyPassMatch` directive is needed when using the direct `DocumentRoot` approach.
-
-#### PHP-FPM port
-
-Homebrew PHP-FPM listens on TCP port 9000 by default. Confirm this matches the `SetHandler` directive above by checking the `listen` value in `/opt/homebrew/etc/php/8.5/php-fpm.d/www.conf`.
-
-#### Service management
-
-```bash
-brew services start php          # start PHP-FPM
-brew services start httpd        # start Apache
-brew services stop php httpd     # stop both
-brew services restart httpd      # reload Apache after config changes
-```
-
 ### OCI Deployment (Lift and Shift)
 
 The project is intended to support deployment to Oracle Cloud Infrastructure (OCI) in a lift-and-shift configuration, with each application running in a dedicated virtual machine within the same OCI compartment. A separate deployment specification will cover the full setup; the notes below capture the key structural differences from the local macOS environment.
@@ -581,8 +519,6 @@ Key differences between the local (macOS) and OCI Linux environments:
 | Service management | Terminal process or `brew services` (not applicable for Bun) | `systemctl` with a custom unit file |
 | Payer endpoint URL | `http://localhost:8080` | OCI VM private IP or hostname |
 | Bun binary path | varies by install method | typically `/root/.bun/bin/bun` |
-
-> **Historical Note (PHP/LAMP):** The original PHP/LAMP OCI deployment approach used Apache virtual host configuration files and PHP-FPM managed via `systemctl`. That configuration detail is preserved in the `Local Apache Configuration` section above for reference.
 
 #### Networking and firewall
 

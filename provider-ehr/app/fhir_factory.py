@@ -1,10 +1,9 @@
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # provider-ehr/app/fhir_factory.py
-# ---------------------------------------------------------------------------
-# Factory module to read fixture files from disk, composes FHIR data
-# structures from them, and returns a populated CdsHooksRequest instance
-# ready to be sent to the payer.
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Factory module to read fixture files, composes FHIR data structures from them,
+# and returns a populated CdsHooksRequest instance read to be sent to payer.
+# ------------------------------------------------------------------------------
 
 import json
 import uuid

@@ -5,24 +5,12 @@
    colonoscopy order, prior procedure history, and the CRD trigger button.
    Extends base.html for the page shell, nav bar, and CDN script loading.
 
-   CONTEXT VARIABLES PROVIDED BY routes/clinician.py -> patient_chart()
-   ----------------------------------------------------------------------
-   patient         (dict)  — FHIR Patient resource loaded from patient.json
-   age             (int)   — patient age pre-calculated in the route handler
-   condition       (dict)  — FHIR Condition resource (family history of CRC)
-   service_request (dict)  — FHIR ServiceRequest (draft colonoscopy order)
-   procedure       (dict)  — FHIR Procedure resource (prior colonoscopy)
-
-   ACCESSING NESTED DICT VALUES IN JINJA2
-   ----------------------------------------
    Jinja2 lets you traverse nested dicts and lists using dot notation or
    bracket notation interchangeably:
        {{ patient.birthDate }}         same as {{ patient["birthDate"] }}
        {{ patient.name[0].family }}    first element of the name list
    Both styles work; dot notation is more readable for deeply nested paths.
 
-   JINJA2 FILTERS
-   ---------------
    Filters transform a value using the pipe character:
        {{ patient.gender | capitalize }}   "male"  →  "Male"
        {{ some_value | default("n/a") }}   outputs "n/a" if the value is undefined
@@ -30,24 +18,15 @@
 #}
 {% extends "base.html" %}
 
-
-{# Override the browser tab title. {{ super() }} inserts the parent block's
-   default text ("Provider EHR"), yielding "Patient Chart — Provider EHR". #}
 {% block title %}Patient Chart — {{ super() }}{% endblock %}
 
-
 {% block content %}
-
 
 {# ==========================================================================
    PATIENT HEADER
    ==========================================================================
    Displays the patient's full name, patient ID, date of birth, age, and
    gender. These fields are extracted from the FHIR Patient resource.
-
-   FHIR name is a list of HumanName objects. In this fixture there is one
-   name entry. name[0].given is itself a list (a person may have multiple
-   given names), so given[0] retrieves the first given name.
    ========================================================================== #}
 <div class="bg-white rounded-lg shadow p-6 mb-6">
 
@@ -102,14 +81,6 @@
    Displays the patient's relevant active conditions from the FHIR Condition
    resource. In Phase 1 there is one condition: the family history of
    colorectal cancer coded as ICD-10-CM Z80.0.
-
-   FHIR Condition.code is a CodeableConcept: a structure that holds one or
-   more Coding entries (system + code + display) plus an optional free-text
-   field. The first coding entry carries the ICD-10-CM code and display text.
-
-   Path:  condition.code.coding[0].code      → "Z80.0"
-          condition.code.coding[0].display    → "Family history of ..."
-          condition.clinicalStatus.coding[0].code → "active"
    ========================================================================== #}
 <div class="bg-white rounded-lg shadow p-6 mb-6">
 
@@ -152,15 +123,6 @@
    Displays the pending colonoscopy ServiceRequest. In FHIR, a ServiceRequest
    with status "draft" represents an order that has been written but not yet
    signed or acted upon.
-
-   The authoredOn date is overridden to today's date in the route handler
-   before being passed to this template, so it reflects the current date
-   rather than the static value stored in the fixture file.
-
-   Path:  service_request.code.coding[0].code     → "45378"
-          service_request.code.coding[0].display   → "Colonoscopy, flexible ..."
-          service_request.status                   → "draft"
-          service_request.authoredOn               → today's date (ISO string)
    ========================================================================== #}
 <div class="bg-white rounded-lg shadow p-6 mb-6">
 
@@ -201,19 +163,6 @@
    Procedure resource). The payer rule engine uses the time elapsed since
    this procedure to determine whether the new order meets the required
    screening interval.
-
-   Elapsed years: Jinja2 has no date-parsing functions, so a simple year
-   subtraction is used for display purposes. Since both dates are ISO strings
-   (YYYY-MM-DD), slicing the first 4 characters gives the year as a string;
-   the | int filter converts it to an integer for arithmetic. This is an
-   approximation — it does not account for month and day and could be off by
-   one at year boundaries. The route handler's Python calculation in
-   clinician.py is authoritative; this is display only.
-
-   Path:  procedure.code.coding[0].code       → "45378"
-          procedure.code.coding[0].display    → "Colonoscopy, flexible ..."
-          procedure.status                    → "completed"
-          procedure.performedDateTime         → "2021-06-03"
    ========================================================================== #}
 <div class="bg-white rounded-lg shadow p-6 mb-6">
 
@@ -281,10 +230,7 @@
    LOADING INDICATOR
    ------------------
    hx-indicator="#crd-spinner" points to a separate element that HTMX shows
-   while the request is in flight and hides otherwise. HTMX controls this by
-   toggling the element's opacity — it looks for the CSS class htmx-indicator
-   on the pointed-to element and sets opacity to 0 by default, then 1 during
-   the request. No JavaScript is needed to wire this up.
+   while the request is in flight and hides otherwise.
    ========================================================================== #}
 <div class="bg-white rounded-lg shadow p-6">
 
@@ -328,6 +274,5 @@
     <div id="cds-cards-panel" class="mt-6"></div>
 
 </div>
-
 
 {% endblock %}

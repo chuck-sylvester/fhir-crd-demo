@@ -3,9 +3,6 @@
 # ---------------------------------------------------------------------
 # Handles all clinician-initiated routes. Returns HTML responses
 # rendered via Jinja2 templates.
-#
-# Registered in app/main.py via:
-#   app.include_router(clinician.router, tags=["clinician"])
 # ---------------------------------------------------------------------
 
 # Standard library imports
@@ -24,7 +21,6 @@ from app import cds_client, fhir_factory
 from app.config import settings
 from app.colors import YELLOW, RESET
 
-
 logger = logging.getLogger(__name__)
 logger.debug(f"{YELLOW}Router Started{RESET}")
 
@@ -35,14 +31,11 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Resolve the templates directory relative to this file's location so the
 # path is correct regardless of the working directory at launch time.
-# clinician.py lives at app/routes/clinician.py, so ".." steps up one level
-# to app/, giving app/templates/. os.path.normpath collapses the ".." so
-# the logged path is clean and readable.
 # ---------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "templates"))
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
-logger.debug(f"{YELLOW}Templates directory: {TEMPLATES_DIR}{RESET}")
+logger.debug(f"{YELLOW}templates: {TEMPLATES_DIR}{RESET}")
 
 # Disable Jinja2 template caching in development so edits to .html files are
 # reflected immediately without restarting the server.
@@ -54,7 +47,6 @@ if settings.app_env == "development":
 # GET /
 # ---------------------------------------------------------------------------
 # Clinician dashboard — the EHR simulator entry point.
-# Phase 1: a minimal welcome page with a link to the demo patient chart.
 # ---------------------------------------------------------------------------
 @router.get("/", response_class=HTMLResponse, name="dashboard")
 async def dashboard(request: Request):
@@ -74,9 +66,6 @@ async def dashboard(request: Request):
 # ---------------------------------------------------------------------------
 # Patient chart — displays demographics, active conditions, draft order,
 # prior procedure history, and the CRD trigger button.
-#
-# Phase 1: only demo-patient-001 is supported. Any other patient_id returns
-# a plain 404. All chart data is loaded from the fixture files on disk.
 # ---------------------------------------------------------------------------
 @router.get("/patients/{patient_id}", response_class=HTMLResponse, name="patient_chart")
 async def patient_chart(request: Request, patient_id: str):
@@ -120,19 +109,13 @@ async def patient_chart(request: Request, patient_id: str):
 # ---------------------------------------------------------------------------
 # CRD trigger — performs the full CDS Hooks exchange with the payer.
 #
-# This route is invoked by the HTMX trigger button on the patient chart:
-#   hx-post="/orders/colonoscopy/crd"
-#   hx-target="#cds-cards-panel"
-#   hx-swap="innerHTML"
-#
 # Steps:
 #   1. Assemble the CDS Hooks order-sign request from fixture data.
 #   2. POST it to the payer's CRD endpoint via the async HTTPX client.
 #   3. Return the cds_cards.html partial for HTMX to insert into the page.
 #
 # Error handling: payer errors return 200 with an error message in the
-# same partial so HTMX inserts the message inline rather than navigating
-# away or leaving the panel empty.
+# same partial so HTMX inserts the message inline.
 # ---------------------------------------------------------------------------
 @router.post("/orders/colonoscopy/crd", response_class=HTMLResponse, name="trigger_crd")
 async def trigger_crd(request: Request):

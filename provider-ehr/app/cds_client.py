@@ -1,10 +1,9 @@
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # provider-ehr/app/cds_client.py
-# ---------------------------------------------------------------------------
-# Sends the CDS Hooks request to the payer and returns the parsed response.
-# It also stores the last request and response in module-level state for
-# the debug screens.
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Sends CDS Hooks request to payer and returns the parsed response. Stores the
+# last request and response in module-level state for the debug screens.
+# -----------------------------------------------------------------------------
 
 import httpx
 

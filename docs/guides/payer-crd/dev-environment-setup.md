@@ -884,3 +884,73 @@ No code changes are needed — `config.py` reads this from the environment.
 | `bun run dev` exits immediately | Syntax error in `src/index.ts` | Check the terminal output for the TypeScript parse error |
 | `curl` returns `Connection refused` | Server is not running, or wrong port | Confirm `bun run dev` is running in the first terminal tab; confirm `PORT` matches |
 | `bun.lockb` conflict in git | Two developers ran `bun add` with different versions | Accept the newer `bun.lockb` and run `bun install` to sync |
+| `error: Failed to start server. Is port 8080 in use?` | A previous server process was not stopped and still holds the port | See Appendix C |
+
+---
+
+## Appendix C: Managing Port 8080
+
+### C.1 Why the Port Is Already in Use
+
+When you start the server with `bun run src/index.ts &` (background) and then close the terminal tab without stopping the server first, the process becomes an orphan — it keeps running with no controlling terminal. The next time you start the server, Bun fails immediately with:
+
+```
+error: Failed to start server. Is port 8080 in use?
+```
+
+This also happens if a previous `bun run dev` session crashed or was interrupted without releasing the port.
+
+### C.2 Find What Is Holding the Port
+
+```zsh
+lsof -i :8080
+```
+
+`lsof` (list open files) reports all processes with an open network socket on port 8080. Look for a line with `LISTEN` in the `STATE` column — that is the process holding the port. The `PID` column contains its process ID.
+
+Example output:
+
+```
+COMMAND   PID  USER   FD   TYPE  DEVICE SIZE/OFF NODE NAME
+bun      4821 chuck   23u  IPv4 0x...       0t0  TCP *:8080 (LISTEN)
+```
+
+### C.3 Kill the Process
+
+```zsh
+kill $(lsof -ti :8080)
+```
+
+`lsof -ti :8080` outputs only the PID(s). `$()` passes them directly to `kill`, which sends `SIGTERM` — a polite shutdown signal. Bun handles `SIGTERM` cleanly.
+
+If the process does not exit within a few seconds (rare), force it:
+
+```zsh
+kill -9 $(lsof -ti :8080)
+```
+
+`-9` sends `SIGKILL`, which the OS enforces immediately.
+
+### C.4 Verify the Port Is Free
+
+```zsh
+lsof -i :8080
+```
+
+No output means the port is available. You can now start the server normally.
+
+### C.5 Optional: Add a Shell Alias
+
+Add this to `~/.zshrc` to make port cleanup a single command:
+
+```zsh
+alias freeport8080='kill $(lsof -ti :8080) 2>/dev/null && echo "port 8080 freed" || echo "port 8080 was not in use"'
+```
+
+Reload the shell after editing:
+
+```zsh
+source ~/.zshrc
+```
+
+Then run `freeport8080` whenever you need to clear the port before starting the server.

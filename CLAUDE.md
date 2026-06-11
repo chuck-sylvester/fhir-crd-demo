@@ -93,7 +93,10 @@ Guides are in `docs/guides/`, organized by application. Specs are in `docs/spec/
 - `fhir-factory.md` — FHIR fixture loading and CDS Hooks request assembly (`app/fhir_factory.py`)
 - `cds-client.md` — Outbound CDS Hooks HTTP client (`app/cds_client.py`)
 
-**Payer CRD guides** (`docs/guides/payer-crd/`): none yet; to be added when Bun + Hono implementation begins.
+**Payer CRD guides** (`docs/guides/payer-crd/`):
+- `dev-environment-setup.md` — Bun + Hono project setup, stack comparison with Python EHR, OCI deployment
+- `typescript-interfaces.md` — CDS Hooks and FHIR R4 TypeScript interfaces (`src/types/cdsHooks.ts`)
+- `colonoscopy-rule-engine.md` — Rule engine design, date arithmetic, array methods, implementation (`src/rules/colonoscopyRuleEngine.ts`)
 
 **Specs** (`docs/spec/`): `fhir-crd-demo-spec.md`, `cds-hooks-api-contract.md`, `provider-ehr-spec.md`, `payer-crd-spec.md`
 
@@ -121,6 +124,29 @@ Each card may include a `links` array with an `absolute` link to a DTR-style doc
 - **Strict app separation:** provider and payer are independently runnable with separate configs, tests, and `.env` files. Real `.env` files are never committed; each app has a `.env.example`.
 - **Synthetic data only.** All patient data is fixture-based; no real patient data, no production HIPAA controls.
 - **Standards baseline:** FHIR R4, CDS Hooks `order-sign`, Da Vinci CRD STU 2.x.
+
+## Bun Tooling
+
+When working in `payer-crd/`, use Bun APIs and CLI commands instead of Node.js equivalents:
+
+| Avoid | Use instead |
+|---|---|
+| `node <file>` / `ts-node <file>` | `bun <file>` |
+| `jest` / `vitest` | `bun test` |
+| `webpack` / `esbuild` | `bun build <file>` |
+| `npm install` / `yarn` / `pnpm install` | `bun install` |
+| `npm run <script>` | `bun run <script>` |
+| `npx <package>` | `bunx <package>` |
+
+Preferred Bun APIs:
+
+- `Bun.serve()` — HTTP server; do not use `express`
+- `Bun.file()` — file reads; do not use `node:fs` readFile/writeFile
+- `bun:sqlite` — SQLite; do not use `better-sqlite3`
+- `Bun.redis` — Redis; do not use `ioredis`
+- `Bun.sql` — Postgres; do not use `pg` or `postgres.js`
+- `Bun.$` — shell commands; do not use `execa`
+- Bun loads `.env` automatically at startup — do not use `dotenv`
 
 ## Implementation Phases
 
@@ -152,7 +178,19 @@ Phase 1 implementation complete (tests and Dockerfile remain).
 
 ### Payer CRD (Bun + Hono)
 
-Implementation in progress. The `payer-crd/` directory currently contains only a legacy placeholder file (`public/index.php`) — the Bun + Hono source structure has not been scaffolded yet. See `docs/spec/payer-crd-spec.md` Section 14 for the full build sequence.
+Implementation in progress. See `docs/spec/payer-crd-spec.md` Section 14 for the full build sequence.
+
+**Complete:**
+- Directory structure, `package.json`, `tsconfig.json`, `.env` / `.env.example`
+- `src/types/cdsHooks.ts` — all TypeScript interfaces and rule engine types
+- `src/index.ts` — Hono app scaffold with `Bun.serve()`
+
+**Not started:**
+- `fixtures/` — `cds-discovery.json`, `cards-covered-high-risk.json`, `cards-missing-documentation.json`
+- `src/routes/discovery.ts`, `src/routes/crd.ts`
+- `src/rules/colonoscopyRuleEngine.ts`
+- `src/cards/cardFactory.ts`
+- `tests/` directory
 
 ---
 

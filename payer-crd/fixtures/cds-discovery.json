@@ -1,0 +1,16 @@
+{
+  "services": [
+    {
+      "hook": "order-sign",
+      "id": "crd-order-sign",
+      "title": "CRD Coverage Requirements Discovery",
+      "description": "Evaluates coverage requirements and prior authorization expectations for draft orders",
+      "prefetch": {
+        "patient": "Patient/{{context.patientId}}",
+        "conditions": "Condition?patient={{context.patientId}}&clinical-status=active",
+        "coverage": "Coverage?patient={{context.patientId}}&status=active",
+        "priorProcedures": "Procedure?patient={{context.patientId}}&status=completed"
+      }
+    }
+  ]
+}

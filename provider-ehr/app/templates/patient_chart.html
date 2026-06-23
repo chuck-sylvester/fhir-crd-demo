@@ -251,17 +251,14 @@
         hx-target="#cds-cards-panel"
         hx-swap="innerHTML"
         hx-indicator="#crd-spinner"
-        class="bg-blue-700 hover:bg-blue-800 text-white font-medium
-               px-6 py-3 rounded-lg transition-colors
-               disabled:opacity-50 disabled:cursor-not-allowed">
+        class="crd-link">
         Check Coverage Requirements
     </button>
 
     {# Loading indicator — hidden by default (HTMX sets opacity: 0 on elements
        with the htmx-indicator class). Becomes visible while the POST request
        to /orders/colonoscopy/crd is in flight. #}
-    <span id="crd-spinner"
-          class="htmx-indicator ml-4 text-sm text-blue-600 animate-pulse">
+    <span id="crd-spinner" class="htmx-indicator">
         Checking coverage requirements&hellip;
     </span>
 

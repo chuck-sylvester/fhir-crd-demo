@@ -28,7 +28,7 @@ class CdsHooksRequest(BaseModel):
     hook_instance: str         # UUID generated fresh for each CRD invocation
     fhir_server: str | None = None  # Placeholder EHR FHIR endpoint URL
     context: CdsHooksContext   # A CdsHooksContext instance (a nested model)
-    prefetch: dict      # Dictionary of prefetched FHIR resources keyed by name
+    prefetch: dict             # Dict of prefetched FHIR resources keyed by name
 
 
 # ---- Incoming Response Models ----

@@ -1,61 +1,37 @@
-{# -------------------------------------------------------------------------
-   dashboard.html — Clinician dashboard (GET /)
-   -------------------------------------------------------------------------
-   Entry point for the EHR simulator. Extends base.html and confirms that
-   the application is running. Provides a link to the demo patient chart.
-   ------------------------------------------------------------------------- #}
+{# ---- dashboard.html — Clinician dashboard (GET /) ---- #}
+
 {% extends "base.html" %}
 
 {% block title %}Dashboard — {{ super() }}{% endblock %}
 
 {% block content %}
 
-{# -----------------------------------------------------------------------
-   Status card — confirms the application is running.
-   ----------------------------------------------------------------------- #}
-<div class="bg-white rounded-lg shadow p-8 mb-6">
+<div class="status-card">
 
-    <h1 class="text-2xl font-bold text-gray-800 mb-2">
+    <h1>
         {{ app_name }}
     </h1>
 
-    <p class="text-gray-500 mb-6">Provider EHR Simulator — CRD Demo</p>
+    <p>Provider EHR Simulator — CRD Demo</p>
 
-    <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200
-                text-green-800 text-sm font-medium px-4 py-2 rounded-full mb-8">
-        {# Unicode bullet used as a simple status dot. A real app would use
-           an SVG icon or an animated pulse indicator from a component library. #}
-        <span class="text-green-500">&#x25CF;</span>
+    <div class="status-badge">
+        {# Unicode bullet used as a simple status dot. #}
+        <span>&#x25CF;</span>
         Application running
     </div>
 
-    {# -----------------------------------------------------------------------
-       Patient chart link
-       -----------------------------------------------------------------------
-       {{ patient_id }} outputs the value passed in the context dict from the
-       route handler. In Phase 1 this is always "demo-patient-001".
-       ----------------------------------------------------------------------- #}
     <div>
-        <p class="text-gray-600 mb-4">
-            Phase 1 demo patient:
-        </p>
-        <a href="/patients/{{ patient_id }}"
-           class="inline-block bg-indigo-700 hover:bg-indigo-800 text-white
-                  font-medium px-6 py-3 rounded-lg transition-colors">
+        <p>Phase 1 demo patient:</p>
+        <a
+            href="/patients/{{ patient_id }}" class="chart-link">
             Open Patient Chart &rarr;
         </a>
     </div>
 
 </div>
 
-{# -----------------------------------------------------------------------
-   Phase note — visible reminder of current implementation scope.
-   This kind of annotation is useful during active development to keep
-   the demo context clear when other developers (or your future self)
-   open the page.
------------------------------------------------------------------------ #}
-<p class="text-sm text-gray-400">
-    Phase 1 &mdash; Static fixtures &bull; Basic CRD request/response exchange
-</p>
+<footer>
+    <p>Phase 1 &mdash; Static fixtures &bull; Basic CRD request/response exchange</p>
+</footer>
 
 {% endblock %}

@@ -1,6 +1,6 @@
 # fhir-crd-demo
 
-A polyglot reference application demonstrating a Coverage Requirements Discovery (CRD) workflow between a simulated provider EHR and a simulated payer CRD service.
+A reference application demonstrating a Coverage Requirements Discovery (CRD) workflow between a simulated provider EHR and a simulated payer CRD service.
 
 ---
 

@@ -1,0 +1,101 @@
+/* --------------------------------------------------------------------
+ * Project Styles
+ * -------------------------------------------------------------------- */
+
+* {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+	}
+
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	background: #D3D4C0;
+    color: gray;
+}
+
+nav {
+    background: #0A2947;
+    color: white;
+    padding: 1.5em 1.25em;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.nav-header {
+    font-size:1.25rem;
+    font-weight: 600;
+    line-height: 1.75rem;
+    letter-spacing: 0.025em;
+    color: #F3E4C9;
+}
+
+main {
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem;
+}
+
+.status-card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.status-card h1 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.status-card p {
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem; /* 8px */
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.25rem; /* 20px */
+  font-weight: 500;
+  padding: 0.5rem 1rem; /* 8px top/bottom, 16px left/right */
+  border-radius: 9999px;
+  margin-bottom: 2rem; /* 32px */
+}
+
+.status-badge span {
+  color: #22c55e;
+}
+
+.chart-link {
+  display: inline-block;
+  background-color: #2B5748; /* bg-indigo-700 */
+  color: #ffffff; /* text-white */
+  font-weight: 500; /* font-medium */
+  padding: 0.75rem 1.5rem; /* py-3 (12px) and px-6 (24px) */
+  border-radius: 0.5rem; /* rounded-lg (8px) */
+  text-decoration: none; /* Recommended: removes standard anchor underline */
+  
+  /* transition-colors */
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.chart-link:hover {
+  background-color: #273338;
+}
+
+footer p {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #4b5563;
+}

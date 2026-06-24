@@ -16,3 +16,4 @@ export async function discoveryHandler(c: Context): Promise<Response> {
   const data = await Bun.file('fixtures/cds-discovery.json').json();
   return c.json(data, 200);
 }
+  

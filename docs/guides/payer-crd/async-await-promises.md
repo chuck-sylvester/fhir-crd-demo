@@ -472,4 +472,5 @@ Hono sends HTTP 200 JSON response to the EHR client
 | `.then()` / `.catch()` | Older callback-based Promise API | `.add_done_callback()` |
 | Rejected Promise | Promise that holds an error | Raised exception in a coroutine |
 
-The mental model in one sentence: **`async`/`await` lets you write code that reads like sequential Python while the runtime handles non-blocking I/O underneath — `await` is the word you write wherever you want to pause and wait, and `Promise<T>` is TypeScript's label for "a `T` that isn't ready yet."**
+The mental model in one sentence:  
+> **`async`/`await`** lets you write code that reads like sequential Python while the runtime handles non-blocking I/O underneath — `await` is the word you write wherever you want to pause and wait, and `Promise<T>` is TypeScript's label for "a `T` that isn't ready yet."

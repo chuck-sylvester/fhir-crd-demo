@@ -1,0 +1,20 @@
+{
+  "cards": [
+    {
+      "summary": "Documentation required: high-risk classification not confirmed",
+      "indicator": "warning",
+      "source": {
+        "label": "Demo Payer CRD Service",
+        "url": "http://localhost:8080"
+      },
+      "detail": "## Documentation Required\n\nA **5-year colonoscopy interval** requires documented high-risk criteria. No qualifying family history condition **(Z80.0 — Family history of malignant neoplasm of digestive organs)** was found in the submitted clinical context.\n\n### What this means\n\n- Without high-risk documentation, this order may be subject to the **standard 10-year average-risk interval** rules\n- If the patient has a qualifying family history, add the ICD-10-CM Z80.0 condition to the problem list before signing\n- Orders submitted without supporting documentation may require prior authorization\n\n### Action required\n\nAttach supporting documentation confirming high-risk classification before submitting this order.",
+      "links": [
+        {
+          "label": "Colonoscopy Risk Documentation Checklist",
+          "url": "http://localhost:8080/questionnaires/colonoscopy-risk",
+          "type": "absolute"
+        }
+      ]
+    }
+  ]
+}

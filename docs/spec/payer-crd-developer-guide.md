@@ -92,6 +92,8 @@ FHIR (Fast Healthcare Interoperability Resources) is the data standard used to r
 | ICD-10-CM | `Z80.0` | Family history of malignant neoplasm of digestive organs |
 | CPT | `45378` | Colonoscopy, flexible, proximal to splenic flexure; diagnostic |
 
+<br><br>
+
 ### 1.5 The CDS Hooks Request Payload
 
 The EHR sends a JSON body like the following when the clinician clicks "Check Coverage Requirements":
@@ -178,6 +180,9 @@ The two services communicate only over HTTP. Neither calls internal functions of
 
 ---
 
+<br><br><br><br><br><br>
+<br><br>
+
 ## Section 2 — Project Configuration
 
 ### 2.1 Directory Structure
@@ -213,6 +218,11 @@ payer-crd/
 
 ### 2.2 `package.json` [COMPLETE]
 
+`package.json` is Bun's (and Node.js's) project manifest — roughly the equivalent of Python's `pyproject.toml` combined with `requirements.txt`. It identifies the project, lists its dependencies, and defines named scripts you run with `bun run <name>`. Before reading the file, focus on three areas: the `scripts` block (the commands available to you), `dependencies` (packages the app needs at runtime), and `devDependencies` (packages used during development and testing but not shipped with the app).
+
+<br><br><br><br><br><br>
+
+
 ```json
 {
   "name": "payer-crd",
@@ -238,6 +248,8 @@ payer-crd/
 The `dev` script uses `--watch` to automatically restart the server whenever a source file changes — the Bun equivalent of `uvicorn --reload`.
 
 ### 2.3 `tsconfig.json` [COMPLETE]
+
+`tsconfig.json` is the TypeScript compiler configuration file. It controls how the TypeScript type checker and language server interpret your source code — analogous to a `mypy.ini` or `[tool.mypy]` section in `pyproject.toml` for Python projects. Bun reads this file at startup to understand the project's module resolution rules and strictness settings. Most settings here are about *how strictly* TypeScript enforces types. This project uses the strictest available settings, so TypeScript will catch more potential bugs — but the code has to be more explicit about handling `null`, `undefined`, and untyped values.
 
 ```json
 {
@@ -581,6 +593,11 @@ console.log(`Payer CRD listening on port ${port}`);
 ```
 
 ---
+
+<br><br><br><br><br><br>
+<br><br><br><br><br><br>
+<br><br><br><br><br><br>
+<br>
 
 ## Section 5 — CDS Hooks Discovery Endpoint [COMPLETE]
 
@@ -1060,8 +1077,7 @@ The card factory is the bridge between the rule engine and the HTTP response. It
 
 Keeping this logic in its own module keeps the route handler thin and makes card construction independently testable. The factory reads fixture files for the two static scenarios, and builds a card inline for the dynamic `interval-not-met` scenario.
 
-The function is `async` because reading fixture files with `Bun.file().json()`
-is an asynchronous operation.
+The function is `async` because reading fixture files with `Bun.file().json()` is an asynchronous operation.
 
 ### 8.2 Create `src/cards/` directory
 
@@ -1322,8 +1338,18 @@ Start the service:
 bun run dev
 ```
 
-Send a test request with the high-risk scenario (Z80.0 present, prior procedure 6 years ago):
+Each test is shown in two forms. The **response body** form pretty-prints the JSON returned by the server. The **response metadata** form suppresses the body and prints only the HTTP status code and Content-Type header — useful for confirming the response code without scrolling through JSON.
 
+**curl flags used:**
+- `-s` — silent mode; suppresses curl's progress output
+- `-o /dev/null` — discards the response body (metadata form only)
+- `-w "..."` — prints a formatted string using curl variables after the request completes (metadata form only)
+
+---
+
+**Test 1 — High-risk scenario** (Z80.0 present, prior procedure 6 years ago):
+
+Response body:
 ```bash
 curl -s -X POST http://localhost:8080/cds-services/crd-order-sign \
   -H 'Content-Type: application/json' \
@@ -1354,16 +1380,77 @@ curl -s -X POST http://localhost:8080/cds-services/crd-order-sign \
       },
       "coverage": { "resourceType": "Coverage", "id": "cov1", "status": "active" }
     }
-  }' | bun run -e "process.stdin.resume(); let d=''; process.stdin.on('data',c=>d+=c); process.stdin.on('end',()=>console.log(JSON.stringify(JSON.parse(d),null,2)))"
+  }' | python3 -m json.tool
 ```
 
-Expected: HTTP 200 with `cards[0].indicator === "info"`.
+Response metadata:
+```bash
+curl -s -o /dev/null \
+  -w "HTTP/%{http_version} %{response_code}\nContent-Type: %{content_type}\n" \
+  -X POST http://localhost:8080/cds-services/crd-order-sign \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "hook": "order-sign",
+    "hookInstance": "test-001",
+    "context": {
+      "userId": "PractitionerRole/demo-clinician",
+      "patientId": "demo-patient-001",
+      "draftOrders": { "resourceType": "Bundle", "type": "collection", "entry": [] }
+    },
+    "prefetch": {
+      "patient": { "resourceType": "Patient", "id": "demo-patient-001", "birthDate": "1971-01-15" },
+      "conditions": {
+        "resourceType": "Bundle", "type": "searchset", "entry": [
+          { "resource": { "resourceType": "Condition", "id": "c1",
+            "code": { "coding": [{ "system": "http://hl7.org/fhir/sid/icd-10-cm", "code": "Z80.0" }] }
+          }}
+        ]
+      },
+      "priorProcedures": {
+        "resourceType": "Bundle", "type": "searchset", "entry": [
+          { "resource": { "resourceType": "Procedure", "id": "p1", "status": "completed",
+            "code": { "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "45378" }] },
+            "performedDateTime": "2019-01-15"
+          }}
+        ]
+      },
+      "coverage": { "resourceType": "Coverage", "id": "cov1", "status": "active" }
+    }
+  }'
+```
 
-Test the missing-documentation path by removing the Z80.0 entry from
-`conditions.entry`:
+Expected: `HTTP/1.1 200` with `cards[0].indicator === "info"`.
 
+---
+
+**Test 2 — Missing-documentation scenario** (no Z80.0 condition present):
+
+Response body:
 ```bash
 curl -s -X POST http://localhost:8080/cds-services/crd-order-sign \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "hook": "order-sign",
+    "hookInstance": "test-002",
+    "context": {
+      "userId": "PractitionerRole/demo-clinician",
+      "patientId": "demo-patient-001",
+      "draftOrders": { "resourceType": "Bundle", "type": "collection", "entry": [] }
+    },
+    "prefetch": {
+      "patient": { "resourceType": "Patient", "id": "demo-patient-001", "birthDate": "1971-01-15" },
+      "conditions": { "resourceType": "Bundle", "type": "searchset", "entry": [] },
+      "priorProcedures": { "resourceType": "Bundle", "type": "searchset", "entry": [] },
+      "coverage": { "resourceType": "Coverage", "id": "cov1", "status": "active" }
+    }
+  }' | python3 -m json.tool
+```
+
+Response metadata:
+```bash
+curl -s -o /dev/null \
+  -w "HTTP/%{http_version} %{response_code}\nContent-Type: %{content_type}\n" \
+  -X POST http://localhost:8080/cds-services/crd-order-sign \
   -H 'Content-Type: application/json' \
   -d '{
     "hook": "order-sign",
@@ -1382,19 +1469,39 @@ curl -s -X POST http://localhost:8080/cds-services/crd-order-sign \
   }'
 ```
 
-Expected: HTTP 200 with `cards[0].indicator === "warning"`.
+Expected: `HTTP/1.1 200` with `cards[0].indicator === "warning"`.
 
-Test validation — missing `hook` field:
+---
 
+**Test 3 — Validation scenario** (missing `hook` field):
+
+Response body:
 ```bash
-curl -i -X POST http://localhost:8080/cds-services/crd-order-sign \
+curl -s -X POST http://localhost:8080/cds-services/crd-order-sign \
+  -H 'Content-Type: application/json' \
+  -d '{ "context": { "userId": "x", "patientId": "y", "draftOrders": { "resourceType": "Bundle", "type": "collection", "entry": [] } } }' \
+  | python3 -m json.tool
+```
+
+Response metadata:
+```bash
+curl -s -o /dev/null \
+  -w "HTTP/%{http_version} %{response_code}\nContent-Type: %{content_type}\n" \
+  -X POST http://localhost:8080/cds-services/crd-order-sign \
   -H 'Content-Type: application/json' \
   -d '{ "context": { "userId": "x", "patientId": "y", "draftOrders": { "resourceType": "Bundle", "type": "collection", "entry": [] } } }'
 ```
 
+Expected: `HTTP/1.1 400`.
+
 Expected: `HTTP/1.1 400 Bad Request`.
 
 ---
+
+<br><br><br><br><br><br><br><br><br><br>
+<br><br><br><br><br><br><br><br><br><br>
+<br><br><br><br><br><br><br><br><br><br>
+<br><br><br><br>
 
 ## Section 10 — Testing
 

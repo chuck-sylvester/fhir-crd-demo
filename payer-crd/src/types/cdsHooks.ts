@@ -1,17 +1,17 @@
-// ---------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // payer-crd/src/types/cdsHooks.ts
-// ---------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // TypeScript interfaces for the CDS Hooks protocol and FHIR R4 resources.
 // All types are named exports; import with:
 //   import type { CdsHooksRequest, CdsCard, RuleResult } from '../types/cdsHooks.js';
 //
 // Consumers:
 //   src/routes/crd.ts          — parses incoming requests, builds responses
-//   src/rules/colonoscopyRuleEngine.ts — receives unwrapped FHIR resources
+//   src/rules/colonoscopyRuleEngine.ts  — receives unwrapped FHIR resources
 //   src/cards/cardFactory.ts   — produces CdsCard arrays from RuleResult
-// ---------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
-// -- FHIR Supporting Types --------------------------------------------
+// -- FHIR Supporting Types -------------------------------------------------
 // Coding and CodeableConcept are the two-level structure FHIR uses for
 // clinical codes (ICD-10-CM, CPT, SNOMED, etc.). Most coded fields on
 // resource interfaces below are typed as FhirCodeableConcept.
@@ -43,7 +43,7 @@ export interface FhirBundle {
   entry: FhirBundleEntry[];
 }
 
-// -- FHIR Resource Types ----------------------------------------------
+// -- FHIR Resource Types ---------------------------------------------------
 // Only fields consumed by the rule engine are typed precisely; all
 // other FHIR fields on these resources are intentionally omitted.
 

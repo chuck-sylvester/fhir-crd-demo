@@ -15,6 +15,7 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from markdown import markdown as md_to_html
 
 # App modules
 from app import cds_client, fhir_factory
@@ -35,6 +36,7 @@ router = APIRouter()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "templates"))
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+templates.env.filters["markdown"] = md_to_html
 logger.debug(f"{YELLOW}templates: {TEMPLATES_DIR}{RESET}")
 
 # Disable Jinja2 template caching in development so edits to .html files are

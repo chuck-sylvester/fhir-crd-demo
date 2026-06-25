@@ -13,16 +13,17 @@
 //   GET  /cds-services                 —> src/routes/discovery.ts
 //   POST /cds-services/crd-order-sign  —> src/routes/crd.ts
 //
-// Hono returns HTTP 404 for any path not listed above — no manual
-// 404 handler is needed.
+// Hono returns HTTP 404 for any path not listed above.
 // ---------------------------------------------------------------------
 
 import { Hono } from 'hono';
 import { discoveryHandler } from './routes/discovery.js';
+import { crdHandler } from './routes/crd.js';
 
 const app = new Hono();
 
 app.get('/cds-services', discoveryHandler);
+app.post('/cds-services/crd-order-sign', crdHandler);
 
 const port = Number(Bun.env.PORT) || 8080;
 
@@ -33,4 +34,5 @@ Bun.serve({
   fetch: app.fetch,
 });
 
+console.log('Bun.serve started...');
 console.log(`Payer CRD listening on port ${port}`);

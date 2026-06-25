@@ -1,0 +1,20 @@
+{
+  "cards": [
+    {
+      "summary": "High-risk family history supports 5-year colonoscopy screening interval",
+      "indicator": "info",
+      "source": {
+        "label": "Demo Payer CRD Service",
+        "url": "http://localhost:8080"
+      },
+      "detail": "## Coverage: High-Risk Screening Interval Confirmed\n\n**ICD-10-CM Z80.0** (Family history of malignant neoplasm of digestive organs) qualifies this patient for a **5-year surveillance interval** under this payer's coverage policy.\n\n### What this means\n\n- The prior procedure date satisfies the 5-year interval requirement\n- This order **appears covered** without prior authorization\n- No additional documentation is required at this time\n\n### Policy basis\n\nPatients with a documented family history of colorectal cancer (Z80.0) are classified as high-risk and qualify for colonoscopy every 5 years rather than the standard 10-year average-risk interval.",
+      "links": [
+        {
+          "label": "Colonoscopy Risk Documentation Checklist",
+          "url": "http://localhost:8080/questionnaires/colonoscopy-risk",
+          "type": "absolute"
+        }
+      ]
+    }
+  ]
+}

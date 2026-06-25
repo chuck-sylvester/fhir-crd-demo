@@ -211,26 +211,28 @@
        CARD DETAIL (optional)
        ------------------------------------------------------------------
        The detail field contains extended guidance text. The CDS Hooks
-       specification permits it to be formatted as Markdown, but Phase 1
-       does not include a Markdown parsing library. Rendering inside a
-       <pre> block preserves line breaks and indentation without any
-       parsing dependency.
+       specification requires it to be formatted as Markdown.
 
-       `whitespace-pre-wrap` (the Tailwind equivalent of CSS
-       `white-space: pre-wrap`) wraps long lines at the container edge
-       rather than extending a horizontal scrollbar.
+       The `markdown` Jinja2 filter (registered in clinician.py) converts
+       the Markdown string to an HTML string using the Python `markdown`
+       library. The `safe` filter tells Jinja2 to render the result as raw
+       HTML rather than escaping it — without `safe`, the angle brackets
+       would be entity-encoded and displayed as visible text.
 
-       `font-sans` overrides the browser's default monospace font for
-       <pre> elements so the detail text reads like body copy rather
-       than code.
+       `prose prose-sm` are Tailwind Typography classes that apply
+       well-proportioned typographic styles to the rendered HTML elements
+       (h2, h3, p, ul, li, strong, etc.) without requiring per-element
+       class attributes. `max-w-none` removes the default max-width cap
+       that prose applies so the detail fills the card width.
 
        The `{% if card.detail %}` check skips this section entirely when
-       detail is None. Omitting it avoids rendering an empty <pre> block
-       when the payer does not include extended guidance.
+       detail is None, avoiding an empty div when the payer omits detail.
     ------------------------------------------------------------------ #}
     {% if card.detail %}
-    <pre class="text-sm text-gray-600 whitespace-pre-wrap font-sans mb-3
-                bg-gray-50 rounded p-3 leading-relaxed">{{ card.detail }}</pre>
+    <div class="prose prose-sm max-w-none text-gray-600 mb-3
+                bg-gray-50 rounded p-3">
+        {{ card.detail | markdown | safe }}
+    </div>
     {% endif %}
 
     {# ------------------------------------------------------------------
